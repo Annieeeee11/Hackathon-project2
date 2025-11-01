@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
+import { ToastProvider } from "@/components/ui/ToastProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Finance Concept Translator",
-  description: "Normalize financial documents in real-time",
+  title: "FinTech - Modern Financial Solutions",
+  description: "Manage your finances with cutting-edge technology. Secure, fast, and designed for the modern user.",
 };
 
 export default function RootLayout({
@@ -28,8 +29,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
-        <Toaster position="top-right" richColors />
+        <ToastProvider>
+          {children}
+        </ToastProvider>
       </body>
     </html>
   );

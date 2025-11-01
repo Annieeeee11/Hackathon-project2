@@ -9,13 +9,22 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.78.0",
+    "@tabler/icons-react": "^3.35.0",
+    "axios": "^1.13.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "lucide-react": "^0.552.0",
+    "motion": "^12.23.24",
     "next": "16.0.1",
+    "pointer-highlight": "link:@/components/ui/pointer-highlight",
     "openai": "^6.7.0",
     "pdf2json": "^4.0.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",
+    "tailwind-merge": "^3.3.1",
+    "zustand": "^5.0.8",
     "sonner": "^2.0.7"
   },
   "devDependencies": {
@@ -27,6 +36,7 @@
     "eslint-config-next": "16.0.1",
     "puppeteer": "^24.27.0",
     "tailwindcss": "^4",
+    "tw-animate-css": "^1.4.0",
     "typescript": "^5"
   }
 }
