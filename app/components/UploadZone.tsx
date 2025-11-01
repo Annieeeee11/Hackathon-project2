@@ -1,15 +1,18 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { Upload, File, X } from 'lucide-react';
+import { Upload, File, X, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { uploadFiles } from '@/lib/api';
 
 interface UploadZoneProps {
-  onUpload: (files: File[]) => void;
+  onJobCreated: (jobId: string) => void;
 }
 
-export default function UploadZone({ onUpload }: UploadZoneProps) {
+export default function UploadZone({ onJobCreated }: UploadZoneProps) {
   const [dragActive, setDragActive] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -32,15 +35,33 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
     
     if (files.length > 0) {
       setUploadedFiles(prev => [...prev, ...files]);
-      onUpload(files);
     }
-  }, [onUpload]);
+  }, []);
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const files = Array.from(e.target.files);
       setUploadedFiles(prev => [...prev, ...files]);
-      onUpload(files);
+    }
+  };
+
+  const handleProcess = async () => {
+    if (uploadedFiles.length === 0) {
+      toast.error('Please upload at least one PDF file');
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const response = await uploadFiles(uploadedFiles);
+      onJobCreated(response.jobId);
+      toast.success(`Processing started! Job ID: ${response.jobId}`);
+      setUploadedFiles([]); // Clear uploaded files
+    } catch (error) {
+      toast.error('Failed to upload files. Please try again.');
+      console.error('Upload error:', error);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -120,8 +141,19 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
         )}
 
         {uploadedFiles.length > 0 && (
-          <button className="mt-4 w-full px-4 py-2.5 bg-zinc-900 text-white text-sm font-medium rounded-lg hover:bg-zinc-800 transition-colors">
-            Process {uploadedFiles.length} {uploadedFiles.length === 1 ? 'Document' : 'Documents'}
+          <button 
+            onClick={handleProcess}
+            disabled={isProcessing}
+            className="mt-4 w-full px-4 py-2.5 bg-zinc-900 text-white text-sm font-medium rounded-lg hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {isProcessing ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Processing...
+              </>
+            ) : (
+              <>Process {uploadedFiles.length} {uploadedFiles.length === 1 ? 'Document' : 'Documents'}</>
+            )}
           </button>
         )}
       </div>

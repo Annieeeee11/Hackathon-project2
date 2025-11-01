@@ -6,9 +6,17 @@ interface JobStatusProps {
   status: 'idle' | 'processing' | 'completed' | 'error';
   progress?: number;
   message?: string;
+  documentsCount?: number;
+  recordsCount?: number;
 }
 
-export default function JobStatus({ status, progress = 0, message }: JobStatusProps) {
+export default function JobStatus({ 
+  status, 
+  progress = 0, 
+  message, 
+  documentsCount = 0,
+  recordsCount = 0 
+}: JobStatusProps) {
   const statusConfig = {
     idle: {
       icon: Clock,
@@ -86,11 +94,11 @@ export default function JobStatus({ status, progress = 0, message }: JobStatusPr
         <div className="grid grid-cols-2 gap-4 mt-6">
           <div className="bg-zinc-50 rounded-lg p-4">
             <p className="text-xs text-zinc-500 mb-1">Documents</p>
-            <p className="text-2xl font-semibold text-zinc-900">0</p>
+            <p className="text-2xl font-semibold text-zinc-900">{documentsCount}</p>
           </div>
           <div className="bg-zinc-50 rounded-lg p-4">
             <p className="text-xs text-zinc-500 mb-1">Records</p>
-            <p className="text-2xl font-semibold text-zinc-900">0</p>
+            <p className="text-2xl font-semibold text-zinc-900">{recordsCount}</p>
           </div>
         </div>
       </div>

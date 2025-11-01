@@ -1,56 +1,43 @@
 'use client';
 
-import { useState } from 'react';
-import { Search, ChevronDown, FileText, ExternalLink } from 'lucide-react';
-
-interface ResultRow {
-  id: string;
-  docName: string;
-  page: number;
-  originalTerm: string;
-  canonical: string;
-  value: string;
-  confidence: number;
-}
+import { useState, useEffect } from 'react';
+import { Search, FileText, ExternalLink, Loader2 } from 'lucide-react';
+import { getResults, ResultRow } from '@/lib/api';
 
 interface ResultsTableProps {
+  jobId: string | null;
   onRowClick: (row: ResultRow) => void;
 }
 
-// Sample data
-const sampleData: ResultRow[] = [
-  {
-    id: '1',
-    docName: 'invoice_001.pdf',
-    page: 2,
-    originalTerm: 'GST',
-    canonical: 'Goods & Services Tax',
-    value: '1,200.00',
-    confidence: 98,
-  },
-  {
-    id: '2',
-    docName: 'invoice_002.pdf',
-    page: 1,
-    originalTerm: 'VAT',
-    canonical: 'Goods & Services Tax',
-    value: '850.50',
-    confidence: 95,
-  },
-  {
-    id: '3',
-    docName: 'invoice_003.pdf',
-    page: 3,
-    originalTerm: 'Service Tax',
-    canonical: 'Goods & Services Tax',
-    value: '450.00',
-    confidence: 92,
-  },
-];
-
-export default function ResultsTable({ onRowClick }: ResultsTableProps) {
+export default function ResultsTable({ jobId, onRowClick }: ResultsTableProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [data] = useState<ResultRow[]>(sampleData);
+  const [data, setData] = useState<ResultRow[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch results when jobId changes
+  useEffect(() => {
+    if (!jobId) {
+      setData([]);
+      return;
+    }
+
+    const fetchResults = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const results = await getResults(jobId);
+        setData(results);
+      } catch (err) {
+        setError('Failed to load results');
+        console.error('Error fetching results:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchResults();
+  }, [jobId]);
 
   const filteredData = data.filter(
     row =>
@@ -110,7 +97,24 @@ export default function ResultsTable({ onRowClick }: ResultsTableProps) {
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-200">
-            {filteredData.length === 0 ? (
+            {isLoading ? (
+              <tr>
+                <td colSpan={7} className="px-6 py-12 text-center">
+                  <div className="flex flex-col items-center justify-center text-zinc-500">
+                    <Loader2 className="w-8 h-8 mb-3 text-zinc-400 animate-spin" />
+                    <p className="text-sm font-medium">Loading results...</p>
+                  </div>
+                </td>
+              </tr>
+            ) : error ? (
+              <tr>
+                <td colSpan={7} className="px-6 py-12 text-center">
+                  <div className="flex flex-col items-center justify-center text-red-500">
+                    <p className="text-sm font-medium">{error}</p>
+                  </div>
+                </td>
+              </tr>
+            ) : filteredData.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-6 py-12 text-center">
                   <div className="flex flex-col items-center justify-center text-zinc-500">

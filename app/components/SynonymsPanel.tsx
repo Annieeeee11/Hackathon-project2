@@ -1,29 +1,42 @@
 'use client';
 
-import { useState } from 'react';
-import { Plus, Edit2, Trash2, Check, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Plus, Edit2, Trash2, Check, X, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { getSynonyms, createSynonym, updateSynonym, deleteSynonym, Synonym } from '@/lib/api';
 
-interface Synonym {
-  id: string;
-  term: string;
-  canonical: string;
+interface SynonymsPanelProps {
+  onSynonymChange?: () => void;
 }
 
-const initialSynonyms: Synonym[] = [
-  { id: '1', term: 'VAT', canonical: 'Goods & Services Tax' },
-  { id: '2', term: 'Service Tax', canonical: 'Goods & Services Tax' },
-  { id: '3', term: 'CGST', canonical: 'Central GST' },
-  { id: '4', term: 'SGST', canonical: 'State GST' },
-];
-
-export default function SynonymsPanel() {
-  const [synonyms, setSynonyms] = useState<Synonym[]>(initialSynonyms);
+export default function SynonymsPanel({ onSynonymChange }: SynonymsPanelProps) {
+  const [synonyms, setSynonyms] = useState<Synonym[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTerm, setEditTerm] = useState('');
   const [editCanonical, setEditCanonical] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [newTerm, setNewTerm] = useState('');
   const [newCanonical, setNewCanonical] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Load synonyms on mount
+  useEffect(() => {
+    const loadSynonyms = async () => {
+      setIsLoading(true);
+      try {
+        const data = await getSynonyms();
+        setSynonyms(data);
+      } catch (error) {
+        toast.error('Failed to load synonyms');
+        console.error('Error loading synonyms:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadSynonyms();
+  }, []);
 
   const startEdit = (synonym: Synonym) => {
     setEditingId(synonym.id);
@@ -31,8 +44,12 @@ export default function SynonymsPanel() {
     setEditCanonical(synonym.canonical);
   };
 
-  const saveEdit = () => {
-    if (editingId) {
+  const saveEdit = async () => {
+    if (!editingId || !editTerm || !editCanonical) return;
+
+    setIsSaving(true);
+    try {
+      await updateSynonym(editingId, editTerm, editCanonical);
       setSynonyms(prev =>
         prev.map(s =>
           s.id === editingId
@@ -41,6 +58,13 @@ export default function SynonymsPanel() {
         )
       );
       setEditingId(null);
+      toast.success('Synonym updated successfully');
+      onSynonymChange?.();
+    } catch (error) {
+      toast.error('Failed to update synonym');
+      console.error('Error updating synonym:', error);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -50,19 +74,38 @@ export default function SynonymsPanel() {
     setEditCanonical('');
   };
 
-  const deleteSynonym = (id: string) => {
-    setSynonyms(prev => prev.filter(s => s.id !== id));
+  const handleDeleteSynonym = async (id: string) => {
+    try {
+      await deleteSynonym(id);
+      setSynonyms(prev => prev.filter(s => s.id !== id));
+      toast.success('Synonym deleted successfully');
+      onSynonymChange?.();
+    } catch (error) {
+      toast.error('Failed to delete synonym');
+      console.error('Error deleting synonym:', error);
+    }
   };
 
-  const addSynonym = () => {
-    if (newTerm && newCanonical) {
-      setSynonyms(prev => [
-        ...prev,
-        { id: Date.now().toString(), term: newTerm, canonical: newCanonical },
-      ]);
+  const addSynonym = async () => {
+    if (!newTerm || !newCanonical) {
+      toast.error('Please fill in both fields');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const newSynonym = await createSynonym(newTerm, newCanonical);
+      setSynonyms(prev => [...prev, newSynonym]);
       setNewTerm('');
       setNewCanonical('');
       setIsAdding(false);
+      toast.success('Synonym added successfully');
+      onSynonymChange?.();
+    } catch (error) {
+      toast.error('Failed to add synonym');
+      console.error('Error adding synonym:', error);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -87,6 +130,11 @@ export default function SynonymsPanel() {
       </div>
 
       <div className="p-6">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
+          </div>
+        ) : (
         <div className="space-y-2">
           {/* Add New Form */}
           {isAdding && (
@@ -120,9 +168,10 @@ export default function SynonymsPanel() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={addSynonym}
-                  className="px-3 py-1.5 bg-zinc-900 text-white text-xs font-medium rounded hover:bg-zinc-800 transition-colors flex items-center gap-1.5"
+                  disabled={isSaving}
+                  className="px-3 py-1.5 bg-zinc-900 text-white text-xs font-medium rounded hover:bg-zinc-800 transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Check className="w-3.5 h-3.5" />
+                  {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                   Save
                 </button>
                 <button
@@ -165,9 +214,10 @@ export default function SynonymsPanel() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={saveEdit}
-                      className="p-1.5 bg-zinc-900 text-white rounded hover:bg-zinc-800 transition-colors"
+                      disabled={isSaving}
+                      className="p-1.5 bg-zinc-900 text-white rounded hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <Check className="w-3.5 h-3.5" />
+                      {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                     </button>
                     <button
                       onClick={cancelEdit}
@@ -196,7 +246,7 @@ export default function SynonymsPanel() {
                       <Edit2 className="w-3.5 h-3.5 text-zinc-600" />
                     </button>
                     <button
-                      onClick={() => deleteSynonym(synonym.id)}
+                      onClick={() => handleDeleteSynonym(synonym.id)}
                       className="p-1.5 hover:bg-red-50 rounded transition-colors"
                     >
                       <Trash2 className="w-3.5 h-3.5 text-red-600" />
@@ -205,8 +255,9 @@ export default function SynonymsPanel() {
                 </div>
               )}
             </div>
-          ))}
+            ))}
         </div>
+        )}
       </div>
     </div>
   );
