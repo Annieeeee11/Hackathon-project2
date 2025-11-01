@@ -43,3 +43,8 @@ next-env.d.ts
 # markdown documentation
 *.md
 .md/
+
+# setup and documentation files
+*.txt
+SETUP_INSTRUCTIONS.txt
+BACKEND_COMPLETE.md

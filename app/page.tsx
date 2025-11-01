@@ -20,6 +20,29 @@ export default function Dashboard() {
   const [isExporting, setIsExporting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | undefined>();
 
+  // Load jobId from localStorage on mount
+  useEffect(() => {
+    const savedJobId = localStorage.getItem('currentJobId');
+    if (savedJobId) {
+      setCurrentJobId(savedJobId);
+      // Fetch the job status
+      const loadJobStatus = async () => {
+        try {
+          const status = await getJobStatus(savedJobId);
+          setJobStatus(status.status === 'done' ? 'completed' : status.status === 'running' ? 'processing' : status.status);
+          setProgress(status.progress || 0);
+          setDocumentsCount(status.documentsProcessed || 0);
+          setRecordsCount(status.totalRecords || 0);
+          setStatusMessage(status.message);
+        } catch (error) {
+          console.error('Failed to load saved job:', error);
+          localStorage.removeItem('currentJobId');
+        }
+      };
+      loadJobStatus();
+    }
+  }, []);
+
   // Poll job status when we have an active job
   useEffect(() => {
     if (!currentJobId || jobStatus === 'completed' || jobStatus === 'error') {
@@ -39,9 +62,11 @@ export default function Dashboard() {
         if (status.status === 'done') {
           clearInterval(pollInterval);
           toast.success('Processing completed successfully!');
+          // Keep jobId in localStorage for completed jobs
         } else if (status.status === 'error') {
           clearInterval(pollInterval);
           toast.error(status.message || 'Processing failed');
+          // Keep jobId even on error so user can see what happened
         }
       } catch (error) {
         console.error('Failed to poll status:', error);
@@ -55,6 +80,8 @@ export default function Dashboard() {
     setCurrentJobId(jobId);
     setJobStatus('processing');
     setProgress(0);
+    // Save to localStorage
+    localStorage.setItem('currentJobId', jobId);
   }, []);
 
   const handleRefreshResults = useCallback(() => {
@@ -98,6 +125,41 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            {!currentJobId && (
+              <button
+                onClick={() => {
+                  // Load test data
+                  const testJobId = '00000000-0000-0000-0000-000000000001';
+                  setCurrentJobId(testJobId);
+                  setJobStatus('completed');
+                  setProgress(100);
+                  setDocumentsCount(2);
+                  setRecordsCount(6);
+                  setStatusMessage('Test data - Processing completed successfully');
+                  localStorage.setItem('currentJobId', testJobId);
+                  toast.success('Loaded test data!');
+                }}
+                className="px-3 py-2 text-xs font-medium text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded-lg transition-colors"
+              >
+                Load Test Data
+              </button>
+            )}
+            {currentJobId && (
+              <button
+                onClick={() => {
+                  setCurrentJobId(null);
+                  setJobStatus('idle');
+                  setProgress(0);
+                  setDocumentsCount(0);
+                  setRecordsCount(0);
+                  localStorage.removeItem('currentJobId');
+                  toast.info('Cleared current job');
+                }}
+                className="px-3 py-2 text-xs font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-colors"
+              >
+                New Upload
+              </button>
+            )}
             <button 
               onClick={handleExportCSV}
               disabled={!currentJobId || jobStatus !== 'completed' || isExporting}
