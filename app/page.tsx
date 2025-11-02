@@ -182,7 +182,7 @@ export default function LandingPage() {
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-16">
               <h2 className="text-3xl md:text-4xl font-semibold text-zinc-900 mb-4">
-                Why Choose Finance Concept Translator
+                Why Choose FinTech
               </h2>
               <p className="text-lg text-zinc-600">
                 Streamline your workflow with powerful features designed for modern finance teams
@@ -253,7 +253,7 @@ export default function LandingPage() {
             Ready to Transform Your Financial Data?
           </h2>
           <p className="text-lg text-zinc-600 mb-10 max-w-xl mx-auto">
-            Join finance teams worldwide who trust Finance Concept Translator for accurate, fast document processing.
+            Join finance teams worldwide who trust FinTech for accurate, fast document processing.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Button 

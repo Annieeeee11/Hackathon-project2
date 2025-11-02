@@ -191,7 +191,7 @@ export default function Dashboard() {
               <FileText className="w-4 h-4 text-white" />
             </div>
         <div>
-              <h1 className="text-lg font-semibold text-zinc-900">Finance Concept Translator</h1>
+              <h1 className="text-lg font-semibold text-zinc-900">FinTech</h1>
               <p className="text-xs text-zinc-500">Normalize financial documents in real-time</p>
             </div>
           </div>

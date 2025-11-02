@@ -10,6 +10,7 @@ interface Evidence {
   canonical: string;
   value: string;
   confidence: number;
+  evidence?: string;
 }
 
 interface EvidenceDrawerProps {
@@ -18,8 +19,9 @@ interface EvidenceDrawerProps {
 }
 
 export default function EvidenceDrawer({ evidence, onClose }: EvidenceDrawerProps) {
-  // Sample evidence snippet
-  const evidenceSnippet = `Invoice Total: Rs. 15,000
+  // Use real evidence from database, fallback to formatted snippet if not available
+  const evidenceSnippet = evidence.evidence || 
+    `Invoice Total: Rs. 15,000
 ${evidence.originalTerm}: Rs. ${evidence.value}
 Net Amount: Rs. 13,800
 

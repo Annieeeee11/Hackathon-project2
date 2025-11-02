@@ -188,7 +188,7 @@ Return ONLY the JSON array, no markdown, no explanation, no other text.`;
         page: Math.min(Math.max(1, r.page || 1), totalPages),
         term: String(r.term).trim(),
         value: String(r.value).replace(/[^\d.,]/g, '').trim(),
-        evidence: String(r.evidence || '').substring(0, 200).trim(),
+        evidence: String(r.evidence || '').replace(/\s+/g, ' ').trim().substring(0, 200),
         confidence: Math.min(Math.max(0, r.confidence || 90), 100),
       }));
 
