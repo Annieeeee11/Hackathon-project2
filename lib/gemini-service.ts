@@ -84,27 +84,27 @@ CRITICAL REQUIREMENTS:
 5. Look for ALL these terms: Subtotal, Discount, Tax, GST, CGST, SGST, IGST, VAT, Service Tax, TDS, Surcharge, Cess, Invoice Total, Net Amount, Gross Amount, Total, Amount Due, etc.
 6. Extract the EXACT term name as written (case-sensitive: "Subtotal", "Discount", "Tax", etc.)
 7. For values: 
-   - Remove currency symbols ($, Rs., etc.) and commas
-   - PRESERVE negative signs for discounts (e.g., "-500")
+   - Remove currency symbols ($, Rs., etc.), commas, plus signs (+), and minus signs (-)
    - For percentages, extract the dollar amount if shown, or convert percentage to amount if needed
    - Extract numbers EXACTLY as written - DO NOT add extra zeros or decimal places
    - If a number is "100", extract "100" NOT "100.00" or "10000"
    - If a number is "100.50", extract "100.50" (preserve the decimal as written)
    - Preserve decimals only if they appear in the source image
+   - NEVER include + or - signs in the extracted values
 8. For each term, capture surrounding context (evidence) showing where it appears
 9. Page number defaults to 1 if single page
 10. Confidence score (0-100) based on clarity
 
 SPECIAL INSTRUCTIONS FOR KEY FIELDS:
 - "Subtotal": Look for amounts labeled as "Subtotal", "Sub Total", "Sub-total" before discounts
-- "Discount": Look for discount amounts (may be negative like "-$500" or percentage like "10%"). Extract the dollar amount value.
+- "Discount": Look for discount amounts (may be negative like "-$500" or percentage like "10%"). Extract the dollar amount value WITHOUT the minus sign.
 - "Tax": Extract tax amounts (may be percentage + amount)
 
 EXAMPLES:
 If you see "Subtotal: $5,250", extract: {"term": "Subtotal", "value": "5250"} (not "5250.00")
 If you see "Subtotal: $5,250.00", extract: {"term": "Subtotal", "value": "5250.00"} (preserve decimals if present)
-If you see "Discount: 10% -$500", extract: {"term": "Discount", "value": "-500"}
-If you see "Discount: -$500.00", extract: {"term": "Discount", "value": "-500.00"}
+If you see "Discount: 10% -$500", extract: {"term": "Discount", "value": "500"} (remove the minus sign)
+If you see "Discount: -$500.00", extract: {"term": "Discount", "value": "500.00"} (remove the minus sign)
 If you see "Tax: 5% $225", extract: {"term": "Tax", "value": "225"}
 
 Return a JSON array with this EXACT structure:
@@ -119,7 +119,7 @@ Return a JSON array with this EXACT structure:
   {
     "page": 1,
     "term": "Discount",
-    "value": "-500",
+    "value": "500",
     "evidence": "Discount: 10% -$500 written on invoice",
     "confidence": 95
   }
@@ -185,25 +185,19 @@ Return ONLY the JSON array, no markdown, no explanation, no other text. Make sur
     const validResults = results
       .filter(r => r.term && r.value)
       .map(r => {
-        // Preserve negative signs for discounts
         const rawValue = String(r.value).trim();
-        const isNegative = rawValue.startsWith('-');
-        // Remove currency symbols, commas, and percentage signs, but preserve minus
-        let cleanedValue = rawValue.replace(/[$Rs.,%]/g, '').trim();
+        // Remove currency symbols, commas, percentage signs, plus signs, minus signs, and whitespace
+        let cleanedValue = rawValue.replace(/[$Rs.,%\s+-]/g, '').trim();
+        // Remove any remaining plus or minus signs (in case they're at the start or anywhere)
+        cleanedValue = cleanedValue.replace(/[+-]/g, '').trim();
         
-        // If it was negative, add back the minus sign
-        if (isNegative && !cleanedValue.startsWith('-')) {
-          cleanedValue = '-' + cleanedValue;
-        }
+        // Remove any non-digit characters except dot and digits
+        cleanedValue = cleanedValue.replace(/[^\d.]/g, '');
         
-        // Remove any non-digit characters except minus, dot, and digits
-        cleanedValue = cleanedValue.replace(/[^\d.-]/g, '');
-        
-        // Ensure proper format: allow negative numbers with decimals
-        if (!cleanedValue.match(/^-?\d+\.?\d*$/)) {
-          // Fallback: extract all digits and decimal point, preserve minus if original had it
-          const digits = cleanedValue.replace(/[^\d.]/g, '');
-          cleanedValue = (isNegative ? '-' : '') + digits;
+        // Ensure proper format: only digits and decimal point
+        if (!cleanedValue.match(/^\d+\.?\d*$/)) {
+          // Fallback: extract all digits and decimal point only
+          cleanedValue = cleanedValue.replace(/[^\d.]/g, '');
         }
         
         return {
