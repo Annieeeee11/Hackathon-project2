@@ -15,7 +15,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create a new job
     const { data: job, error: jobError } = await supabase
       .from('jobs')
       .insert({
@@ -35,9 +34,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Process each file and optionally upload to storage
     const documentPromises = files.map(async (file) => {
-      // Try to upload to Supabase Storage (optional, won't fail if it doesn't work)
       const filePath = await uploadFileToStorage(file, job.id);
 
       const { data: document, error: docError } = await supabase
@@ -62,7 +59,6 @@ export async function POST(request: NextRequest) {
     const documents = await Promise.all(documentPromises);
     const validDocuments = documents.filter(Boolean);
 
-    // Update job to running status
     await supabase
       .from('jobs')
       .update({ 
@@ -71,7 +67,6 @@ export async function POST(request: NextRequest) {
       })
       .eq('id', job.id);
 
-    // Start background processing with real OpenAI extraction
     processDocuments(job.id, validDocuments.map(d => d!.id), files);
 
     return NextResponse.json({
@@ -88,12 +83,10 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Real processing function with OpenAI
 async function processDocuments(jobId: string, documentIds: string[], files: File[]) {
   try {
     console.log(`[Job ${jobId}] Starting real OCR processing for ${files.length} files`);
 
-    // Update job to running
     await supabase
       .from('jobs')
       .update({ 
@@ -102,7 +95,6 @@ async function processDocuments(jobId: string, documentIds: string[], files: Fil
       })
       .eq('id', jobId);
 
-    // Get synonyms for mapping
     const { data: synonyms } = await supabase
       .from('synonyms')
       .select('*');
@@ -110,12 +102,11 @@ async function processDocuments(jobId: string, documentIds: string[], files: Fil
     const synonymMap = new Map(synonyms?.map(s => [s.term.toLowerCase(), s.canonical]) || []);
     console.log(`[Job ${jobId}] Loaded ${synonyms?.length || 0} synonym mappings`);
 
-    // Process all PDFs with OpenAI
     let currentProgress = 10;
     const allResults: any[] = [];
 
     const extractionResults = await processPDFBatch(files, async (current, total, filename) => {
-      // Update progress for each file
+
       currentProgress = 10 + Math.floor((current / total) * 60);
       await supabase
         .from('jobs')
@@ -138,12 +129,10 @@ async function processDocuments(jobId: string, documentIds: string[], files: Fil
       })
       .eq('id', jobId);
 
-    // Map extraction results to database format
     for (let i = 0; i < extractionResults.length; i++) {
       const extraction = extractionResults[i];
       const docId = documentIds[i];
 
-      // Get document info
       const { data: doc } = await supabase
         .from('documents')
         .select('*')
@@ -155,9 +144,7 @@ async function processDocuments(jobId: string, documentIds: string[], files: Fil
         continue;
       }
 
-      // Map each extracted term
       for (const extracted of extraction.results) {
-        // Find canonical term from synonyms
         const canonical = synonymMap.get(extracted.term.toLowerCase()) || extracted.term;
 
         allResults.push({
@@ -184,7 +171,6 @@ async function processDocuments(jobId: string, documentIds: string[], files: Fil
       })
       .eq('id', jobId);
 
-    // Insert all results to database
     if (allResults.length > 0) {
       const { error: resultsError } = await supabase
         .from('results')
@@ -204,10 +190,8 @@ async function processDocuments(jobId: string, documentIds: string[], files: Fil
       })
       .eq('id', jobId);
 
-    // Wait a moment for UI effect
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    // Mark job as complete
     await supabase
       .from('jobs')
       .update({

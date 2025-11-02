@@ -33,44 +33,35 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  // Skip middleware for auth callback route (handles email verification)
   if (pathname === '/auth/callback') {
     return supabaseResponse;
   }
 
-  // Protected routes - require authentication
   if (pathname.startsWith('/dashboard')) {
-    // If user is not authenticated, redirect to landing page
     if (!user) {
       const url = request.nextUrl.clone();
       url.pathname = '/';
       return NextResponse.redirect(url);
     }
     
-    // Authenticated users can always access dashboard
-    // (navigation restrictions handled client-side)
     return supabaseResponse;
   }
 
-  // Landing page - redirect authenticated users to dashboard
   if (pathname === '/') {
     if (user) {
       const url = request.nextUrl.clone();
       url.pathname = '/dashboard';
       return NextResponse.redirect(url);
     }
-    // Always allow landing page access
     return supabaseResponse;
   }
 
-  // Auth routes (login/signup) - redirect authenticated users to dashboard
   if (pathname === '/login' || pathname === '/signup') {
     if (user) {
       const url = request.nextUrl.clone();
       url.pathname = '/dashboard';
       return NextResponse.redirect(url);
     }
-    // Allow auth pages for unauthenticated users
     return supabaseResponse;
   }
 

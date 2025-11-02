@@ -24,7 +24,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get job info for each document via results table
     const history = await Promise.all(
       documents?.map(async (doc) => {
         const { data: result } = await supabase

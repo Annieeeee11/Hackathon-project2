@@ -13,7 +13,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Check job status first
     const { data: job, error: jobError } = await supabase
       .from('jobs')
       .select('status, total_records')
@@ -34,7 +33,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Fetch results for the job
     const { data: results, error } = await supabase
       .from('results')
       .select('*')
@@ -56,7 +54,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Generate CSV
     const headers = [
       'Document Name',
       'Page',
@@ -76,13 +73,12 @@ export async function GET(request: NextRequest) {
         `"${row.canonical}"`,
         `"${row.value}"`,
         row.confidence,
-        `"${(row.evidence || '').replace(/"/g, '""')}"` // Escape quotes in evidence
+        `"${(row.evidence || '').replace(/"/g, '""')}"` 
       ].join(','))
     ];
 
     const csv = csvRows.join('\n');
 
-    // Return CSV file
     return new NextResponse(csv, {
       headers: {
         'Content-Type': 'text/csv',

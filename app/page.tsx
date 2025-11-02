@@ -14,13 +14,11 @@ export default function LandingPage() {
   const [signupModalOpen, setSignupModalOpen] = useState(false);
   const router = useRouter();
 
-  // Setup navigation guard to prevent browser navigation
   useEffect(() => {
     const cleanup = setupNavigationGuard(router);
     return cleanup;
   }, [router]);
 
-  // Listen for switch events between login/signup
   useEffect(() => {
     const handleSwitchToSignup = () => {
       setLoginModalOpen(false);
@@ -44,30 +42,23 @@ export default function LandingPage() {
   const handleAuthSuccess = () => {
     setLoginModalOpen(false);
     setSignupModalOpen(false);
-    // Set navigation token before redirecting
     if (typeof window !== 'undefined') {
       sessionStorage.setItem('nav-token', 'valid');
       sessionStorage.setItem('nav-time', Date.now().toString());
       document.cookie = `nav-token=valid; path=/; max-age=10; SameSite=Lax`;
-      // Force navigation to dashboard
       window.location.href = '/dashboard';
     }
   };
   
-  // Block browser back/forward buttons only if on landing page
   useEffect(() => {
-    // Only block navigation if we're actually on the landing page
     if (window.location.pathname !== '/') return;
     
     const handlePopState = (e: PopStateEvent) => {
       e.preventDefault();
-      // Clear nav tokens
       document.cookie = 'nav-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-      // Stay on current page
       window.history.pushState(null, '', window.location.href);
     };
     
-    // Push initial state
     window.history.pushState(null, '', window.location.href);
     window.addEventListener('popstate', handlePopState);
     
@@ -81,8 +72,7 @@ export default function LandingPage() {
         onLoginClick={() => setLoginModalOpen(true)}
         onSignupClick={() => setSignupModalOpen(true)}
       />
-      
-      {/* Hero Section */}
+
       <section className="max-w-7xl mx-auto px-6 py-20 md:py-32">
         <div className="max-w-4xl mx-auto text-center">
           <div className="flex items-center justify-center gap-4 mb-8">
@@ -176,7 +166,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Benefits Section */}
       <section className="bg-white border-t border-zinc-200 py-16 md:py-24">
         <div className="max-w-7xl mx-auto px-6">
           <div className="max-w-4xl mx-auto">
@@ -246,7 +235,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* CTA Section */}
       <section className="max-w-7xl mx-auto px-6 py-20 md:py-32">
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-3xl md:text-4xl font-semibold text-zinc-900 mb-6">
@@ -276,7 +264,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Login Modal */}
       <Modal 
         isOpen={loginModalOpen} 
         onClose={() => setLoginModalOpen(false)}
@@ -287,7 +274,6 @@ export default function LandingPage() {
         />
       </Modal>
 
-      {/* Signup Modal */}
       <Modal 
         isOpen={signupModalOpen} 
         onClose={() => setSignupModalOpen(false)}

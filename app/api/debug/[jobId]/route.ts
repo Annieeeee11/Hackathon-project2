@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
-// Debug endpoint to check job status and results
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ jobId: string }> }
@@ -9,7 +8,6 @@ export async function GET(
   try {
     const { jobId } = await params;
 
-    // Get job info
     const { data: job, error: jobError } = await supabase
       .from('jobs')
       .select('*')
@@ -24,19 +22,16 @@ export async function GET(
       }, { status: 404 });
     }
 
-    // Get documents for this job
     const { data: documents } = await supabase
       .from('documents')
       .select('*')
       .eq('job_id', jobId);
 
-    // Get results
     const { data: results, error: resultsError } = await supabase
       .from('results')
       .select('*')
       .eq('job_id', jobId);
 
-    // Get synonyms
     const { data: synonyms } = await supabase
       .from('synonyms')
       .select('*');

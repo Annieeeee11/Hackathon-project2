@@ -20,7 +20,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch all results for this job
     console.log('[Chat API] Fetching results for jobId:', jobId);
     const { data: results, error: resultsError } = await supabase
       .from('results')
@@ -44,7 +43,6 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Format the data for OpenAI
     const dataContext = results.map(r => ({
       document: r.doc_name,
       page: r.page,
@@ -54,12 +52,10 @@ export async function POST(request: NextRequest) {
       evidence: r.evidence,
     }));
 
-    // Build conversation history for context
     const conversationContext = conversationHistory
       ?.map((msg: any) => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
       .join('\n') || '';
 
-    // Create prompt for OpenAI
     const prompt = `You are a helpful financial data assistant. You have access to extracted financial data from invoices and can answer questions about them.
 
 Available Financial Data:
@@ -81,7 +77,6 @@ Instructions:
 
 Answer:`;
 
-    // Call OpenAI
     console.log('[Chat API] Calling OpenAI...');
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
@@ -102,7 +97,6 @@ Answer:`;
     const answer = completion.choices[0].message.content || 'I could not generate an answer.';
     console.log('[Chat API] Got answer:', answer.substring(0, 100));
 
-    // Store chat in database (optional - for history)
     try {
       await supabase.from('chat_history').insert({
         job_id: jobId,

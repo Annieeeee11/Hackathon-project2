@@ -25,15 +25,12 @@ async function convertHTMLtoPDF() {
 
     const page = await browser.newPage();
     
-    // Read HTML file
     const htmlContent = fs.readFileSync(htmlPath, 'utf8');
     
-    // Set content
     await page.setContent(htmlContent, {
       waitUntil: 'networkidle0'
     });
 
-    // Generate PDF
     await page.pdf({
       path: pdfPath,
       format: 'A4',
