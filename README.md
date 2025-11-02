@@ -1,36 +1,288 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Finance Concept Translator- FinTech
+
+An AI-powered financial document processor that extracts, normalizes, and analyzes financial data from PDF invoices and receipts. Transform complex financial documents into clean, consistent data with intelligent concept mapping and real-time processing.
+
+## Overview
+
+Finance Concept Translator uses advanced AI to extract financial terms from any PDF format, normalizes them using intelligent synonym mapping, and provides interactive Q&A capabilities for data exploration. Built for hackathon projects requiring accurate financial data extraction from varied document formats.
+
+![Landing Page](/landingpage.png)
+
+## Key Features
+
+### Intelligent Document Processing
+- **Format-Agnostic Extraction**: Works with any PDF layout, from simple invoices to complex multi-tax documents
+- **AI-Powered Analysis**: Uses OpenAI GPT-4o-mini for context-aware extraction, not just keyword matching
+- **Batch Processing**: Upload and process multiple documents simultaneously
+- **Real-Time Updates**: See results appear instantly as they're processed
+
+### Smart Normalization
+- **Synonym Management**: Map variations (G.S.T, IGST, CGST) to canonical terms (GST)
+- **Adaptive Learning**: System learns from your corrections and applies them to future processing
+- **Concept Mapping**: Automatically normalizes terms across different documents
+
+### Interactive Data Exploration
+- **Q&A Chat Interface**: Ask natural language questions about your extracted data
+- **Evidence Tracking**: View source snippets for every extracted value
+- **Confidence Scoring**: See accuracy indicators for each extraction
+
+### Data Export
+- **CSV Export**: Download normalized data in Excel-compatible format
+- **Complete Metadata**: Includes document names, page numbers, confidence scores, and evidence
+
+## Technology Stack
+
+### Frontend
+- **Next.js 16** (App Router) - Full-stack React framework with server-side rendering
+- **React 19** - Modern UI library with concurrent rendering
+- **TypeScript** - Type-safe development
+- **Tailwind CSS** - Utility-first styling framework
+- **Zustand** - Lightweight state management
+
+### Backend
+- **Next.js API Routes** - Serverless backend endpoints
+- **Supabase** - PostgreSQL database with real-time subscriptions and file storage
+- **OpenAI GPT-4o-mini** - AI-powered document analysis
+- **pdf2json** - PDF text extraction library
+
+### Infrastructure
+- **Supabase Auth** - User authentication and session management
+- **Supabase Storage** - Secure file storage
+- **Supabase Realtime** - Live data streaming capabilities
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
+- Node.js 18+ installed
+- npm or pnpm package manager
+- Supabase account and project
+- OpenAI API key
+
+### Installation
+
+1. Clone the repository:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone <repository-url>
+cd Hackathon-project2
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install dependencies:
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Set up environment variables:
+Create a `.env.local` file in the root directory:
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+OPENAI_API_KEY=your_openai_api_key
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+4. Run the development server:
+```bash
+npm run dev
+```
 
-## Learn More
+5. Open [http://localhost:3000](http://localhost:3000) in your browser
 
-To learn more about Next.js, take a look at the following resources:
+## Usage
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Document Upload
+1. Navigate to the dashboard after signing up/logging in
+2. Drag and drop PDF files or click to browse
+3. Multiple files can be uploaded simultaneously
+4. Processing begins automatically
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+![Dashboard](/dashboard.png)
 
-## Deploy on Vercel
+### Viewing Results
+1. Results appear in real-time as processing completes
+2. Use the search bar to filter by term, document, or canonical field
+3. Click any row to view detailed evidence with source snippets
+4. Confidence scores indicate extraction accuracy
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+![Results Table](/results.png)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+![Evidence Drawer](/evidence.png)
+
+### Managing Synonyms
+1. Access the Synonyms Panel on the dashboard
+2. Add new mappings: Map term variations to canonical fields
+3. Edit existing mappings: Update normalization rules
+4. Changes apply instantly to future processing
+
+![Synonyms Panel](/synonyms.png)
+
+### Interactive Q&A
+1. Open the chat interface from the dashboard
+2. Ask questions about your extracted data:
+   - "What's the total GST amount?"
+   - "Show all taxes from invoice_001.pdf"
+   - "What's the discount on page 2?"
+3. Get instant answers based on your extracted data
+
+![Chat Interface](/chat.png)
+
+### Exporting Data
+1. Click the "Export CSV" button when results are ready
+2. Download includes all fields: Document, Page, Original Term, Canonical Field, Value, Confidence, Evidence
+3. Open in Excel or any spreadsheet application
+
+## Project Structure
+
+```
+Hackathon-project2/
+├── app/
+│   ├── api/              # Backend API routes
+│   │   ├── ingest/       # Document upload and processing
+│   │   ├── results/      # Results retrieval
+│   │   ├── synonyms/     # Synonym management
+│   │   ├── chat/         # Q&A chat interface
+│   │   └── export/       # CSV export functionality
+│   ├── components/       # Reusable UI components
+│   ├── dashboard/        # Main dashboard page
+│   └── page.tsx          # Landing page
+├── lib/
+│   ├── api.ts            # API client utilities
+│   ├── openai-service.ts # AI extraction logic
+│   └── supabase.ts       # Supabase client setup
+└── public/               # Static assets
+```
+
+
+## API Endpoints
+
+### POST /api/ingest
+Upload PDF files for processing. Accepts multipart/form-data with file array.
+
+**Response**: `{ jobId: string, status: string }`
+
+### GET /api/status/[jobId]
+Get processing status and progress for a job.
+
+**Response**: `{ status: string, progress: number, documentsProcessed: number, totalRecords: number }`
+
+### GET /api/results/[jobId]
+Get all extracted results for a completed job.
+
+**Response**: Array of result objects with normalized data
+
+### GET /api/synonyms
+Get all synonym mappings.
+
+**Response**: Array of synonym objects
+
+### POST /api/synonyms
+Create a new synonym mapping.
+
+**Body**: `{ term: string, canonical: string }`
+
+### PUT /api/synonyms/[id]
+Update an existing synonym mapping.
+
+**Body**: `{ term: string, canonical: string }`
+
+### DELETE /api/synonyms/[id]
+Delete a synonym mapping.
+
+### POST /api/chat
+Send a question about extracted data.
+
+**Body**: `{ jobId: string, question: string }`
+
+**Response**: `{ answer: string }`
+
+### GET /api/export/csv
+Export results to CSV format.
+
+**Query**: `?jobId=string`
+
+## Database Schema
+
+### Tables
+
+**jobs**: Tracks processing jobs
+- id (uuid)
+- status (text)
+- progress (integer)
+- documents_processed (integer)
+- total_records (integer)
+- created_at (timestamp)
+
+**documents**: Stores uploaded PDF metadata
+- id (uuid)
+- name (text)
+- file_path (text)
+- file_size (integer)
+- status (text)
+- job_id (uuid)
+
+**results**: Contains extracted financial data
+- id (uuid)
+- job_id (uuid)
+- doc_id (uuid)
+- doc_name (text)
+- page (integer)
+- original_term (text)
+- canonical (text)
+- value (text)
+- confidence (integer)
+- evidence (text)
+
+**synonyms**: User-defined term mappings
+- id (uuid)
+- term (text)
+- canonical (text)
+- created_at (timestamp)
+
+**chat_history**: Q&A conversation history
+- id (uuid)
+- job_id (uuid)
+- question (text)
+- answer (text)
+- created_at (timestamp)
+
+## Development
+
+### Running Tests
+```bash
+npm run test
+```
+
+### Building for Production
+```bash
+npm run build
+npm start
+```
+
+### Linting
+```bash
+npm run lint
+```
+
+## Troubleshooting
+
+### Documents Not Processing
+- Check OpenAI API key is set correctly in `.env.local`
+- Verify Supabase connection in browser console
+- Check file size limits (default 10MB per file)
+
+### Results Not Appearing
+- Ensure job status is "done" before viewing results
+- Check browser console for API errors
+- Verify Supabase database connection
+
+### Chat Not Working
+- Ensure a job has completed processing
+- Check that results exist for the jobId
+- Verify OpenAI API key is valid
+
+
+
+
+
+
+
+
