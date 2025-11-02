@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { AuthForm } from '@/components/auth';
 import { Modal } from '@/components/ui/Modal';
@@ -16,7 +16,9 @@ export default function LoginPage() {
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose}>
-      <AuthForm mode="login" />
+      <Suspense fallback={<div className="w-full p-8 text-center">Loading...</div>}>
+        <AuthForm mode="login" />
+      </Suspense>
     </Modal>
   );
 }
