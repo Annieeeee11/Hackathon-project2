@@ -163,7 +163,7 @@ export default function ResultsTable({ jobId, onRowClick }: ResultsTableProps) {
                   </td>
                   <td className="px-6 py-4 text-right">
                     <span className="text-sm font-mono text-zinc-900">
-                      ${row.value}
+                      {row.value}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-center">

@@ -122,7 +122,7 @@ Payment due within 30 days of invoice date.`;
               </div>
               <div className="mt-4 pt-4 border-t border-zinc-300">
                 <p className="text-xs text-zinc-500 mb-1">Extracted Value</p>
-                <p className="text-xl font-mono font-bold text-zinc-900">${evidence.value}</p>
+                <p className="text-xl font-mono font-bold text-zinc-900">Rs.{evidence.value}</p>
               </div>
             </div>
           </div>
