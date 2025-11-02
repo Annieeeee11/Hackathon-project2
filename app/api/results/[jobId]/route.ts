@@ -33,7 +33,6 @@ export async function GET(
       })));
     } else {
       console.warn(`[Results API] ⚠️ No results found for jobId ${jobId}`);
-      // Check if job exists
       const { data: job } = await supabase
         .from('jobs')
         .select('*')
@@ -47,7 +46,6 @@ export async function GET(
       }
     }
 
-    // Transform to match frontend interface
     const transformedResults = results?.map(result => ({
       id: result.id,
       docId: result.doc_id,

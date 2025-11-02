@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
-// PUT update synonym
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -51,7 +50,6 @@ export async function PUT(
   }
 }
 
-// DELETE synonym
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

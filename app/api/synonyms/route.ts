@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
-// GET all synonyms
 export async function GET() {
   try {
     const { data: synonyms, error } = await supabase
@@ -28,7 +27,6 @@ export async function GET() {
   }
 }
 
-// POST create new synonym
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -49,7 +47,6 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Error creating synonym:', error);
-      // Check for duplicate key violation
       if (error.code === '23505' || error.message?.includes('duplicate') || error.message?.includes('unique')) {
         return NextResponse.json(
           { error: 'A synonym with this term already exists' },
