@@ -2,7 +2,6 @@
 
 import { useEffect } from 'react';
 import { Card } from '@/components/ui';
-import { Loader } from '@/components/ui/Loader';
 import { useAppStore } from '@/lib/store';
 import { usePolling } from '@/lib/hooks';
 import { CheckCircle2, Clock, AlertCircle, Loader2 } from 'lucide-react';

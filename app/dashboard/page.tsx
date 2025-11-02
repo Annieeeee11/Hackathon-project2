@@ -62,7 +62,12 @@ export default function Dashboard() {
       const loadJobStatus = async () => {
         try {
           const status = await getJobStatus(savedJobId);
-          setJobStatus(status.status === 'done' ? 'completed' : status.status === 'running' ? 'processing' : status.status);
+          setJobStatus(
+            status.status === 'done' ? 'completed' 
+            : status.status === 'running' || status.status === 'queued' ? 'processing' 
+            : status.status === 'error' ? 'error' 
+            : 'idle'
+          );
           setProgress(status.progress || 0);
           setDocumentsCount(status.documentsProcessed || 0);
           setRecordsCount(status.totalRecords || 0);
@@ -96,7 +101,7 @@ export default function Dashboard() {
         } else if (status.status === 'error') {
           setJobStatus('error');
           clearInterval(pollInterval);
-        } else if (status.status === 'running') {
+        } else if (status.status === 'running' || status.status === 'queued') {
           setJobStatus('processing');
         }
       } catch (error) {

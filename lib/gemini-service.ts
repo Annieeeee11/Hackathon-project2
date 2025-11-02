@@ -146,7 +146,8 @@ Return ONLY the JSON array, no markdown, no explanation, no other text. Make sur
     let parsed;
     try {
       // Try to extract JSON from markdown code blocks if present
-      const jsonMatch = responseText.match(/```(?:json)?\s*(\[.*?\])\s*```/s);
+      // Use [\s\S] instead of /s flag for ES2017 compatibility
+      const jsonMatch = responseText.match(/```(?:json)?\s*(\[[\s\S]*?\])\s*```/);
       const jsonText = jsonMatch ? jsonMatch[1] : responseText.trim();
       
       parsed = JSON.parse(jsonText);

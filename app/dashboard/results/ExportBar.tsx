@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Download, RefreshCw } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
-import { apiClient } from '@/lib/api';
+import { exportCSV } from '@/lib/api';
 import { Button, Card } from '@/components/ui';
 import { useToast } from '@/components/ui/ToastProvider';
 
@@ -14,17 +14,14 @@ export function ExportBar() {
   const [refreshing, setRefreshing] = useState(false);
 
   const handleExport = async () => {
+    if (!jobId) {
+      showToast('No job ID available', 'error');
+      return;
+    }
+
     setExporting(true);
     try {
-      const blob = await apiClient.exportCSV();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `export-${new Date().toISOString().split('T')[0]}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
+      await exportCSV(jobId);
       showToast('CSV exported successfully', 'success');
     } catch (error: any) {
       showToast(error.message || 'Export failed', 'error');
@@ -58,7 +55,7 @@ export function ExportBar() {
           variant="primary"
           size="md"
           className="flex-1"
-          disabled={exporting}
+          disabled={exporting || !jobId || status !== 'done'}
         >
           <Download className="w-4 h-4 mr-2" />
           {exporting ? 'Exporting...' : 'Download CSV'}

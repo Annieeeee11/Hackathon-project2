@@ -148,10 +148,20 @@ export async function deleteSynonym(id: string): Promise<void> {
 
 // Export results as CSV
 export async function exportCSV(jobId?: string): Promise<void> {
-  const url = jobId ? `/api/export/csv?jobId=${jobId}` : '/api/export/csv';
+  if (!jobId) {
+    throw new Error('Job ID is required to export CSV');
+  }
+
+  const url = `/api/export/csv?jobId=${jobId}`;
   const response = await fetch(url);
 
   if (!response.ok) {
+    // Try to parse error message from JSON response
+    const contentType = response.headers.get('content-type');
+    if (contentType?.includes('application/json')) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to export CSV');
+    }
     throw new Error('Failed to export CSV');
   }
 
@@ -165,4 +175,81 @@ export async function exportCSV(jobId?: string): Promise<void> {
   document.body.removeChild(a);
   window.URL.revokeObjectURL(downloadUrl);
 }
+
+// API Client adapter for store/hooks
+// This wraps the individual functions to match the expected interface
+// Store references to the exported functions to avoid naming conflicts
+const _getSynonyms = getSynonyms;
+const _createSynonym = createSynonym;
+const _updateSynonym = updateSynonym;
+const _deleteSynonym = deleteSynonym;
+const _getResults = getResults;
+const _getJobStatus = getJobStatus;
+
+// Import types from types.ts to match store expectations
+type StoreSynonym = import('./types').Synonym;
+
+export const apiClient = {
+  // Ingest files - create processing job
+  async ingest(files: File[]): Promise<{ job_id: string }> {
+    const response = await uploadFiles(files);
+    return { job_id: response.jobId };
+  },
+
+  // Get all synonyms - returns { synonyms: Synonym[] }
+  async getSynonyms(): Promise<{ synonyms: StoreSynonym[] }> {
+    const synonymsList = await _getSynonyms();
+    // Transform from { id, term, canonical } to { term, canonical }
+    return {
+      synonyms: synonymsList.map(s => ({ term: s.term, canonical: s.canonical })) as StoreSynonym[]
+    };
+  },
+
+  // Create synonym - accepts { term, canonical }
+  async createSynonym(data: { term: string; canonical: string }): Promise<void> {
+    await _createSynonym(data.term, data.canonical);
+  },
+
+  // Update synonym by term - finds by term, then updates by id
+  async updateSynonym(term: string, canonical: string): Promise<void> {
+    const synonymsList = await _getSynonyms();
+    const existing = synonymsList.find(s => s.term === term);
+    if (!existing) {
+      throw new Error(`Synonym with term "${term}" not found`);
+    }
+    await _updateSynonym(existing.id, term, canonical);
+  },
+
+  // Delete synonym by term - finds by term, then deletes by id
+  async deleteSynonym(term: string): Promise<void> {
+    const synonymsList = await _getSynonyms();
+    const existing = synonymsList.find(s => s.term === term);
+    if (!existing) {
+      throw new Error(`Synonym with term "${term}" not found`);
+    }
+    await _deleteSynonym(existing.id);
+  },
+
+  // Get results - transforms ResultRow[] to { rows: ConceptRow[] }
+  async getResults(jobId: string): Promise<{ rows: import('./types').ConceptRow[] }> {
+    const resultsList = await _getResults(jobId);
+    // Transform ResultRow[] to ConceptRow[]
+    const rows = resultsList.map(r => ({
+      field: r.originalTerm,
+      canonical: r.canonical,
+      value: r.value,
+      doc_id: r.docId,
+      page: r.page,
+      evidence: r.evidence || '',
+      bbox: undefined as [number, number, number, number] | undefined,
+    }));
+    return { rows };
+  },
+
+  // Get status - extracts status from JobStatusResponse
+  async getStatus(jobId: string): Promise<{ status: import('./types').JobStatus }> {
+    const response = await _getJobStatus(jobId);
+    return { status: response.status };
+  },
+};
 

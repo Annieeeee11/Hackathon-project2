@@ -13,6 +13,27 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Check job status first
+    const { data: job, error: jobError } = await supabase
+      .from('jobs')
+      .select('status, total_records')
+      .eq('id', jobId)
+      .single();
+
+    if (jobError || !job) {
+      return NextResponse.json(
+        { error: 'Job not found' },
+        { status: 404 }
+      );
+    }
+
+    if (job.status !== 'done') {
+      return NextResponse.json(
+        { error: `Cannot export: Job is still ${job.status}. Please wait for processing to complete.` },
+        { status: 400 }
+      );
+    }
+
     // Fetch results for the job
     const { data: results, error } = await supabase
       .from('results')
@@ -30,7 +51,7 @@ export async function GET(request: NextRequest) {
 
     if (!results || results.length === 0) {
       return NextResponse.json(
-        { error: 'No results found for this job' },
+        { error: 'No results found for this job. The job may have completed but no data was extracted.' },
         { status: 404 }
       );
     }
