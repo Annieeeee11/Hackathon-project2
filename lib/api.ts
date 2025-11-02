@@ -272,3 +272,64 @@ export const apiClient = {
   },
 };
 
+// Pathway API functions
+export interface PathwayQueryRequest {
+  query: string;
+  context?: Record<string, any>;
+  parameters?: Record<string, any>;
+}
+
+export interface PathwayProcessRequest {
+  input: any;
+  pipeline?: string;
+}
+
+/**
+ * Execute a query against Pathway service
+ */
+export async function pathwayQuery(data: PathwayQueryRequest): Promise<any> {
+  const response = await fetch('/api/pathway', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'query', ...data }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Pathway query failed');
+  }
+
+  return response.json();
+}
+
+/**
+ * Process data through Pathway pipeline
+ */
+export async function pathwayProcess(data: PathwayProcessRequest): Promise<any> {
+  const response = await fetch('/api/pathway', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'process', ...data }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Pathway processing failed');
+  }
+
+  return response.json();
+}
+
+/**
+ * Check Pathway service health
+ */
+export async function pathwayHealthCheck(): Promise<{ status: string; service: string }> {
+  const response = await fetch('/api/pathway?action=health');
+
+  if (!response.ok) {
+    throw new Error('Pathway health check failed');
+  }
+
+  return response.json();
+}
+
