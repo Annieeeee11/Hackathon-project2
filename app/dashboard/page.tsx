@@ -26,7 +26,7 @@ export default function Dashboard() {
   const [recordsCount, setRecordsCount] = useState(0);
   const [isExporting, setIsExporting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | undefined>();
-  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  // const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const router = useRouter();
@@ -207,12 +207,12 @@ export default function Dashboard() {
               <Download className="w-4 h-4" />
               {isExporting ? 'Exporting...' : 'Export CSV'}
             </button>
-            <button 
+            {/* <button 
               onClick={() => setIsSettingsModalOpen(true)}
               className="p-2 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-colors"
             >
               <Settings className="w-4 h-4" />
-            </button>
+            </button> */}
             <button
               onClick={handleLogout}
               disabled={isLoggingOut}
@@ -268,7 +268,7 @@ export default function Dashboard() {
       )}
 
       {/* Settings Modal */}
-      <Modal 
+      {/* <Modal 
         isOpen={isSettingsModalOpen} 
         onClose={() => setIsSettingsModalOpen(false)}
       >
@@ -287,7 +287,7 @@ export default function Dashboard() {
             </Button>
           </div>
         </div>
-      </Modal>
+      </Modal> */}
 
       {/* Floating Chat Button */}
       {!isChatOpen && (

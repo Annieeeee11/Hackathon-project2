@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
 import { ToastProvider } from "@/components/ui/ToastProvider";
+import { ScreenSizeGuard } from "@/components/ScreenSizeGuard";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,7 +31,9 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <ToastProvider>
-          {children}
+          <ScreenSizeGuard>
+            {children}
+          </ScreenSizeGuard>
         </ToastProvider>
       </body>
     </html>

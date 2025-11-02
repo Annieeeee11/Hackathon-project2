@@ -53,7 +53,7 @@ export default function JobStatus({
   const Icon = config.icon;
 
   return (
-    <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden">
+    <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden h-93">
       <div className="px-6 py-4 border-b border-zinc-200">
         <h2 className="text-sm font-semibold text-zinc-900">Processing Status</h2>
       </div>
@@ -65,10 +65,10 @@ export default function JobStatus({
               <Icon className={`w-6 h-6 ${config.animate ? 'animate-spin' : ''}`} />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className={`text-base font-semibold ${config.color} mb-1`}>
+              <h3 className={`text-base font-semibold ${config.color} mb-6`}>
                 {config.text}
               </h3>
-              <p className="text-sm text-zinc-600">
+              <p className="text-sm text-zinc-600 mb-6">
                 {config.description}
               </p>
             </div>
