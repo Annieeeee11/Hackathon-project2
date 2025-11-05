@@ -19,6 +19,7 @@ export function AuthForm({ mode, onSuccess }: AuthFormProps) {
   });
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [signupSuccess, setSignupSuccess] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
@@ -26,6 +27,7 @@ export function AuthForm({ mode, onSuccess }: AuthFormProps) {
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
+    setSignupSuccess(false);
     setLoading(true);
 
     if (mode === 'signup') {
@@ -44,28 +46,26 @@ export function AuthForm({ mode, onSuccess }: AuthFormProps) {
           password: formData.password,
         });
         if (error) throw error;
+        
+        if (onSuccess) {
+          onSuccess();
+        } else {
+          const redirect = searchParams.get('redirect') || '/dashboard';
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('nav-token', 'valid');
+            sessionStorage.setItem('nav-time', Date.now().toString());
+            document.cookie = `nav-token=valid; path=/; max-age=5; SameSite=Lax`;
+          }
+          router.push(redirect);
+          router.refresh();
+        }
       } else {
         const { error } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
         });
         if (error) throw error;
-      }
-      
-      // If onSuccess callback is provided, use it (for modal context)
-      // Otherwise, redirect normally
-      if (onSuccess) {
-        onSuccess();
-      } else {
-        const redirect = searchParams.get('redirect') || '/dashboard';
-        // Set navigation token before redirecting
-        if (typeof window !== 'undefined') {
-          sessionStorage.setItem('nav-token', 'valid');
-          sessionStorage.setItem('nav-time', Date.now().toString());
-          document.cookie = `nav-token=valid; path=/; max-age=5; SameSite=Lax`;
-        }
-        router.push(redirect);
-        router.refresh();
+        setSignupSuccess(true);
       }
     } catch (err: any) {
       setError(err.message || 'An error occurred');
@@ -145,6 +145,14 @@ export function AuthForm({ mode, onSuccess }: AuthFormProps) {
         {error && (
           <div className="p-3 rounded-lg bg-black/5 border-2 border-black/20">
             <p className="text-sm text-black">{error}</p>
+          </div>
+        )}
+        
+        {signupSuccess && mode === 'signup' && (
+          <div className="p-4 rounded-lg bg-green-50 border-2 border-green-200">
+            <p className="text-sm text-green-800 font-medium">
+              Account created successfully! Please check your email to verify.
+            </p>
           </div>
         )}
         
