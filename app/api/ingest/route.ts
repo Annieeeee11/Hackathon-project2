@@ -1,10 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/server';
 import { processPDFBatch } from '@/lib/openai-service';
 import { uploadFileToStorage } from '@/lib/storage-service';
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = await createClient();
+    
+    // Get authenticated user
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const formData = await request.formData();
     const files = formData.getAll('files') as File[];
 
@@ -18,6 +30,7 @@ export async function POST(request: NextRequest) {
     const { data: job, error: jobError } = await supabase
       .from('jobs')
       .insert({
+        user_id: user.id,
         status: 'queued',
         progress: 0,
         documents_processed: 0,
@@ -40,6 +53,7 @@ export async function POST(request: NextRequest) {
       const { data: document, error: docError } = await supabase
         .from('documents')
         .insert({
+          user_id: user.id,
           name: file.name,
           file_path: filePath,
           file_size: file.size,
@@ -65,9 +79,10 @@ export async function POST(request: NextRequest) {
         status: 'running',
         message: `Processing ${validDocuments.length} documents...`
       })
-      .eq('id', job.id);
+      .eq('id', job.id)
+      .eq('user_id', user.id);
 
-    processDocuments(job.id, validDocuments.map(d => d!.id), files);
+    processDocuments(job.id, user.id, validDocuments.map(d => d!.id), files);
 
     return NextResponse.json({
       jobId: job.id,
@@ -83,29 +98,30 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function processDocuments(jobId: string, documentIds: string[], files: File[]) {
+async function processDocuments(jobId: string, userId: string, documentIds: string[], files: File[]) {
   try {
-    console.log(`[Job ${jobId}] Starting real OCR processing for ${files.length} files`);
-
+    const supabase = await createClient();
+    
     await supabase
       .from('jobs')
       .update({ 
         progress: 5, 
         message: 'Initializing OCR engine...' 
       })
-      .eq('id', jobId);
+      .eq('id', jobId)
+      .eq('user_id', userId);
 
     const { data: synonyms } = await supabase
       .from('synonyms')
-      .select('*');
+      .select('*')
+      .eq('user_id', userId);
 
     const synonymMap = new Map(synonyms?.map(s => [s.term.toLowerCase(), s.canonical]) || []);
-    console.log(`[Job ${jobId}] Loaded ${synonyms?.length || 0} synonym mappings`);
 
     let currentProgress = 10;
     const allResults: any[] = [];
 
-    const extractionResults = await processPDFBatch(files, async (current, total, filename) => {
+      const extractionResults = await processPDFBatch(files, async (current, total, filename) => {
 
       currentProgress = 10 + Math.floor((current / total) * 60);
       await supabase
@@ -114,12 +130,9 @@ async function processDocuments(jobId: string, documentIds: string[], files: Fil
           progress: currentProgress,
           message: `Extracting data from ${filename} (${current}/${total})...`
         })
-        .eq('id', jobId);
-      
-      console.log(`[Job ${jobId}] Processing ${filename}: ${current}/${total}`);
+        .eq('id', jobId)
+        .eq('user_id', userId);
     });
-
-    console.log(`[Job ${jobId}] OpenAI extraction complete. Processing results...`);
 
     await supabase
       .from('jobs')
@@ -127,7 +140,8 @@ async function processDocuments(jobId: string, documentIds: string[], files: Fil
         progress: 75,
         message: 'Mapping extracted terms to canonical fields...'
       })
-      .eq('id', jobId);
+      .eq('id', jobId)
+      .eq('user_id', userId);
 
     for (let i = 0; i < extractionResults.length; i++) {
       const extraction = extractionResults[i];
@@ -137,10 +151,10 @@ async function processDocuments(jobId: string, documentIds: string[], files: Fil
         .from('documents')
         .select('*')
         .eq('id', docId)
+        .eq('user_id', userId)
         .single();
 
       if (!doc || extraction.results.length === 0) {
-        console.log(`[Job ${jobId}] No results for ${extraction.filename}`);
         continue;
       }
 
@@ -149,6 +163,7 @@ async function processDocuments(jobId: string, documentIds: string[], files: Fil
 
         allResults.push({
           job_id: jobId,
+          user_id: userId,
           doc_id: docId,
           doc_name: doc.name,
           page: extracted.page,
@@ -161,15 +176,14 @@ async function processDocuments(jobId: string, documentIds: string[], files: Fil
       }
     }
 
-    console.log(`[Job ${jobId}] Mapped ${allResults.length} financial terms`);
-
     await supabase
       .from('jobs')
       .update({ 
         progress: 85,
         message: 'Saving extracted data...'
       })
-      .eq('id', jobId);
+      .eq('id', jobId)
+      .eq('user_id', userId);
 
     if (allResults.length > 0) {
       const { error: resultsError } = await supabase
@@ -188,7 +202,8 @@ async function processDocuments(jobId: string, documentIds: string[], files: Fil
         progress: 95,
         message: 'Finalizing...'
       })
-      .eq('id', jobId);
+      .eq('id', jobId)
+      .eq('user_id', userId);
 
     await new Promise(resolve => setTimeout(resolve, 500));
 
@@ -201,12 +216,12 @@ async function processDocuments(jobId: string, documentIds: string[], files: Fil
         total_records: allResults.length,
         message: `Successfully extracted ${allResults.length} financial terms from ${files.length} documents`,
       })
-      .eq('id', jobId);
-
-    console.log(`[Job ${jobId}] Processing complete! Total records: ${allResults.length}`);
+      .eq('id', jobId)
+      .eq('user_id', userId);
 
   } catch (error) {
     console.error(`[Job ${jobId}] Processing error:`, error);
+    const supabase = await createClient();
     
     await supabase
       .from('jobs')

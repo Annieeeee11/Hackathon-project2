@@ -1,19 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/server';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ jobId: string }> }
 ) {
   try {
+    const supabase = await createClient();
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const { jobId } = await params;
 
-    console.log(`[Results API] Fetching results for jobId: ${jobId}`);
+    const { data: job, error: jobError } = await supabase
+      .from('jobs')
+      .select('id')
+      .eq('id', jobId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (jobError || !job) {
+      return NextResponse.json(
+        { error: 'Job not found or access denied' },
+        { status: 403 }
+      );
+    }
 
     const { data: results, error } = await supabase
       .from('results')
       .select('*')
       .eq('job_id', jobId)
+      .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -24,24 +48,16 @@ export async function GET(
       );
     }
 
-    console.log(`[Results API] Found ${results?.length || 0} results for jobId ${jobId}`);
-    if (results && results.length > 0) {
-      console.log(`[Results API] Sample results:`, results.slice(0, 3).map(r => ({
-        term: r.original_term,
-        canonical: r.canonical,
-        value: r.value
-      })));
-    } else {
-      console.warn(`[Results API] ⚠️ No results found for jobId ${jobId}`);
-      const { data: job } = await supabase
+    if (!results || results.length === 0) {
+      console.warn(`[Results API] No results found for jobId ${jobId}`);
+      const { data: jobData } = await supabase
         .from('jobs')
         .select('*')
         .eq('id', jobId)
+        .eq('user_id', user.id)
         .single();
       
-      if (job) {
-        console.log(`[Results API] Job exists with status: ${job.status}, progress: ${job.progress}, total_records: ${job.total_records}`);
-      } else {
+      if (!jobData) {
         console.warn(`[Results API] Job ${jobId} not found`);
       }
     }

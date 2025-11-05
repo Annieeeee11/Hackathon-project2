@@ -34,8 +34,6 @@ export async function GET(request: Request) {
     await supabase.auth.exchangeCodeForSession(code);
   }
 
-  // After email verification, redirect to dashboard if authenticated
-  // Otherwise redirect to landing page
   return NextResponse.redirect(new URL('/dashboard', requestUrl.origin));
 }
 

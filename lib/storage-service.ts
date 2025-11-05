@@ -46,7 +46,6 @@ export async function ensureStorageBucket() {
         fileSizeLimit: 10485760, // 10MB
         allowedMimeTypes: ['application/pdf'],
       });
-      console.log('Created documents storage bucket');
     }
   } catch (error) {
     console.error('Error ensuring storage bucket:', error);

@@ -1,34 +1,52 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/server';
 
 export async function GET() {
   try {
+    const supabase = await createClient();
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('[Synonyms GET] Auth error:', authError);
+      // Return empty array for better UX - no scary error messages
+      return NextResponse.json([]);
+    }
+
     const { data: synonyms, error } = await supabase
       .from('synonyms')
       .select('*')
+      .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching synonyms:', error);
-      return NextResponse.json(
-        { error: 'Failed to fetch synonyms' },
-        { status: 500 }
-      );
+      console.error('[Synonyms GET] Database error:', error);
+      // Return empty array instead of error - let the UI show "No synonyms" state
+      return NextResponse.json([]);
     }
 
     return NextResponse.json(synonyms || []);
 
-  } catch (error) {
-    console.error('Synonyms fetch error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch synonyms' },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    console.error('[Synonyms GET] Unexpected error:', error);
+    // Return empty array for any unexpected errors
+    return NextResponse.json([]);
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = await createClient();
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const { term, canonical } = body;
 
@@ -41,7 +59,11 @@ export async function POST(request: NextRequest) {
 
     const { data: synonym, error } = await supabase
       .from('synonyms')
-      .insert({ term, canonical })
+      .insert({ 
+        user_id: user.id,
+        term, 
+        canonical 
+      })
       .select()
       .single();
 

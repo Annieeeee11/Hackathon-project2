@@ -23,14 +23,10 @@ export interface ExtractionResult {
 export async function extractTextFromPDF(fileBuffer: Buffer): Promise<{ text: string; pages: number }> {
   return new Promise((resolve, reject) => {
     try {
-      console.log(`Attempting to parse PDF, buffer size: ${fileBuffer.length} bytes`);
-      
       const pdfParser = new PDFParser();
       
       pdfParser.on('pdfParser_dataReady', (pdfData: any) => {
         try {
-          console.log(`✓ PDF loaded: ${pdfData.Pages.length} pages`);
-          
           let fullText = '';
           for (const page of pdfData.Pages) {
             if (page.Texts) {
@@ -48,9 +44,6 @@ export async function extractTextFromPDF(fileBuffer: Buffer): Promise<{ text: st
             }
           }
           
-          console.log(`✓ Extracted ${fullText.length} characters from ${pdfData.Pages.length} pages`);
-          console.log(`First 500 chars of extracted text:\n${fullText.substring(0, 500)}`);
-          
           resolve({
             text: fullText.trim(),
             pages: pdfData.Pages.length,
@@ -61,13 +54,13 @@ export async function extractTextFromPDF(fileBuffer: Buffer): Promise<{ text: st
       });
       
       pdfParser.on('pdfParser_dataError', (errData: any) => {
-        console.error('✗ PDF parsing error:', errData.parserError);
+        console.error('PDF parsing error:', errData.parserError);
         reject(new Error(errData.parserError));
       });
       
       pdfParser.parseBuffer(fileBuffer);
     } catch (error) {
-      console.error('✗ PDF parsing error:', error);
+      console.error('PDF parsing error:', error);
       reject(error);
     }
   });
@@ -79,11 +72,6 @@ export async function extractFinancialDataWithAI(
   totalPages: number
 ): Promise<ExtractionResult> {
   try {
-    console.log(`\n========== SENDING TO OPENAI ==========`);
-    console.log(`Text length: ${pdfText.length} characters`);
-    console.log(`First 500 chars:\n${pdfText.substring(0, 500)}`);
-    console.log(`=======================================\n`);
-    
     const prompt = `You are a financial document analyzer. Extract ALL financial terms and their values from this invoice/financial document.
 
 IMPORTANT RULES:
@@ -129,30 +117,21 @@ Return ONLY the JSON array, no markdown, no explanation, no other text.`;
     });
 
     const responseText = completion.choices[0].message.content || '{}';
-    console.log(`\n========== OPENAI RESPONSE ==========`);
-    console.log(`Response length: ${responseText.length} characters`);
-    console.log(`Full response:\n${responseText}`);
-    console.log(`=====================================\n`);
 
     let parsed;
     try {
       parsed = JSON.parse(responseText);
-      console.log('Parsed type:', Array.isArray(parsed) ? 'array' : typeof parsed);
       
       if (parsed.results && Array.isArray(parsed.results)) {
-        console.log('Found results array in response');
         parsed = parsed.results;
       }
       else if (parsed.term && parsed.value && !Array.isArray(parsed)) {
-        console.log('Single result object detected, wrapping in array');
         parsed = [parsed];
       }
       else if (!Array.isArray(parsed)) {
         const keys = Object.keys(parsed);
-        console.log('Response keys:', keys);
         for (const key of keys) {
           if (Array.isArray(parsed[key])) {
-            console.log(`Found array in key: ${key}`);
             parsed = parsed[key];
             break;
           }
@@ -164,7 +143,6 @@ Return ONLY the JSON array, no markdown, no explanation, no other text.`;
     }
 
     const results: ExtractedFinancialData[] = Array.isArray(parsed) ? parsed : [];
-    console.log(`Converted to array with ${results.length} items`);
 
     const validResults = results
       .filter(r => r.term && r.value)
@@ -175,11 +153,6 @@ Return ONLY the JSON array, no markdown, no explanation, no other text.`;
         evidence: String(r.evidence || '').replace(/\s+/g, ' ').trim().substring(0, 200),
         confidence: Math.min(Math.max(0, r.confidence || 90), 100),
       }));
-
-    console.log(`✓ Validated ${validResults.length} financial terms`);
-    if (validResults.length > 0) {
-      console.log(`Sample extracted terms:`, validResults.slice(0, 2).map(r => `${r.term}: ${r.value}`).join(', '));
-    }
 
     return {
       filename,
@@ -197,26 +170,20 @@ export async function processPDFWithAI(
   file: File
 ): Promise<ExtractionResult> {
   try {
-    console.log(`\n========== Processing ${file.name} ==========`);
-
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-    console.log(`✓ Converted to buffer: ${buffer.length} bytes`);
 
     const { text, pages } = await extractTextFromPDF(buffer);
-    console.log(`✓ Extracted text: ${text.length} characters, ${pages} pages`);
-    console.log(`First 500 chars: ${text.substring(0, 500)}`);
 
     if (!text || text.trim().length === 0) {
       throw new Error('No text found in PDF - possibly a scanned document');
     }
 
     const result = await extractFinancialDataWithAI(text, file.name, pages);
-    console.log(`✓ OpenAI returned ${result.results.length} results`);
 
     return result;
   } catch (error) {
-    console.error(`✗ Error processing ${file.name}:`, error);
+    console.error(`Error processing ${file.name}:`, error);
     throw error;
   }
 }
@@ -281,13 +248,8 @@ export async function extractFinancialDataFromImage(
   file: File
 ): Promise<ExtractionResult> {
   try {
-    console.log(`\n========== Processing ${file.name} with OpenAI Vision ==========`);
-    
     const base64Data = await fileToBase64(file);
     const mimeType = getMimeType(file);
-    
-    console.log(`✓ File converted to base64: ${base64Data.length} characters`);
-    console.log(`✓ MIME type: ${mimeType}`);
 
     const prompt = `You are an expert financial document OCR and data extraction specialist. Analyze this HANDWRITTEN invoice image and extract ALL financial terms and their values.
 
@@ -346,8 +308,6 @@ IMPORTANT:
 - Include line item totals if visible
 - Return ONLY valid JSON object with "results" key, nothing else
 - Every extracted term must have: page, term, value, evidence, confidence`;
-
-    console.log(`\n========== SENDING TO OPENAI VISION ==========`);
     
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
@@ -379,34 +339,23 @@ IMPORTANT:
     });
 
     const responseText = completion.choices[0].message.content || '{}';
-    console.log(`\n========== OPENAI VISION RESPONSE ==========`);
-    console.log(`Response length: ${responseText.length} characters`);
-    console.log(`Full response:\n${responseText}`);
-    console.log(`============================================\n`);
 
     let parsed;
     try {
       parsed = JSON.parse(responseText);
-      console.log('Parsed type:', Array.isArray(parsed) ? 'array' : typeof parsed);
       
       if (parsed.results && Array.isArray(parsed.results)) {
-        console.log('Found results array in response');
         parsed = parsed.results;
       } else if (parsed.data && Array.isArray(parsed.data)) {
-        console.log('Found data array in response');
         parsed = parsed.data;
       } else if (parsed.items && Array.isArray(parsed.items)) {
-        console.log('Found items array in response');
         parsed = parsed.items;
       } else if (parsed.term && parsed.value && !Array.isArray(parsed)) {
-        console.log('Single result object detected, wrapping in array');
         parsed = [parsed];
       } else if (!Array.isArray(parsed)) {
         const keys = Object.keys(parsed);
-        console.log('Response keys:', keys);
         for (const key of keys) {
           if (Array.isArray(parsed[key])) {
-            console.log(`Found array in key: ${key}`);
             parsed = parsed[key];
             break;
           }
@@ -420,7 +369,6 @@ IMPORTANT:
         const fallbackMatch = responseText.match(/\[[\s\S]*\]/);
         if (fallbackMatch) {
           parsed = JSON.parse(fallbackMatch[0]);
-          console.log('Fallback parsing successful');
         } else {
           parsed = [];
         }
@@ -431,7 +379,6 @@ IMPORTANT:
     }
 
     const results: ExtractedFinancialData[] = Array.isArray(parsed) ? parsed : [];
-    console.log(`Converted to array with ${results.length} items`);
 
     const validResults = results
       .filter(r => r.term && r.value)
@@ -454,14 +401,8 @@ IMPORTANT:
         };
       });
 
-    console.log(`✓ Validated ${validResults.length} financial terms`);
-    if (validResults.length > 0) {
-      console.log(`All extracted terms:`);
-      validResults.forEach((r, idx) => {
-        console.log(`  [${idx + 1}] ${r.term}: ${r.value} (confidence: ${r.confidence}, page: ${r.page})`);
-      });
-    } else {
-      console.warn(`⚠️ WARNING: No valid results extracted from ${file.name}`);
+    if (validResults.length === 0) {
+      console.warn(`WARNING: No valid results extracted from ${file.name}`);
       console.warn(`Raw parsed data:`, parsed);
       console.warn(`Original response text length: ${responseText.length}`);
     }
@@ -482,10 +423,9 @@ export async function processHandwrittenInvoiceWithOpenAI(
   file: File
 ): Promise<ExtractionResult> {
   try {
-    console.log(`\n========== Processing Handwritten Invoice: ${file.name} ==========`);
     return await extractFinancialDataFromImage(file);
   } catch (error) {
-    console.error(`✗ Error processing ${file.name}:`, error);
+    console.error(`Error processing ${file.name}:`, error);
     throw error;
   }
 }

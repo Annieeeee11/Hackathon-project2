@@ -1,8 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/server';
 
 export async function GET(request: NextRequest) {
   try {
+    const supabase = await createClient();
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('[Documents GET] Auth error:', authError);
+      // Return empty array for better UX - no scary error messages
+      return NextResponse.json([]);
+    }
+
     const { data: documents, error } = await supabase
       .from('documents')
       .select(`
@@ -13,15 +23,14 @@ export async function GET(request: NextRequest) {
         created_at,
         upload_date
       `)
+      .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(50);
 
     if (error) {
-      console.error('Error fetching document history:', error);
-      return NextResponse.json(
-        { error: 'Failed to fetch document history' },
-        { status: 500 }
-      );
+      console.error('[Documents GET] Database error:', error);
+      // Return empty array instead of error - let the UI show "No documents" state
+      return NextResponse.json([]);
     }
 
     const history = await Promise.all(
@@ -42,6 +51,7 @@ export async function GET(request: NextRequest) {
             .from('jobs')
             .select('status, total_records')
             .eq('id', jobId)
+            .eq('user_id', user.id)
             .maybeSingle();
           
           recordsCount = job?.total_records || 0;
@@ -64,10 +74,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(history);
   } catch (error) {
     console.error('Document history error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch document history' },
-      { status: 500 }
-    );
+    // Return empty array for any unexpected errors
+    return NextResponse.json([]);
   }
 }
 

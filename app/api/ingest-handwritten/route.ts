@@ -1,10 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/server';
 import { processHandwrittenInvoiceBatchOpenAI } from '@/lib/openai-service';
 import { uploadFileToStorage } from '@/lib/storage-service';
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = await createClient();
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const formData = await request.formData();
     const files = formData.getAll('files') as File[];
 
@@ -18,6 +29,7 @@ export async function POST(request: NextRequest) {
     const { data: job, error: jobError } = await supabase
       .from('jobs')
       .insert({
+        user_id: user.id,
         status: 'queued',
         progress: 0,
         documents_processed: 0,
@@ -40,6 +52,7 @@ export async function POST(request: NextRequest) {
       const { data: document, error: docError } = await supabase
         .from('documents')
         .insert({
+          user_id: user.id,
           name: file.name,
           file_path: filePath,
           file_size: file.size,
@@ -65,9 +78,10 @@ export async function POST(request: NextRequest) {
         status: 'running',
         message: `Processing ${validDocuments.length} handwritten invoices with OpenAI Vision...`
       })
-      .eq('id', job.id);
+      .eq('id', job.id)
+      .eq('user_id', user.id);
 
-    processDocuments(job.id, validDocuments.map(d => d!.id), files);
+    processDocuments(job.id, user.id, validDocuments.map(d => d!.id), files);
 
     return NextResponse.json({
       jobId: job.id,
@@ -83,27 +97,25 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function processDocuments(jobId: string, documentIds: string[], files: File[]) {
+async function processDocuments(jobId: string, userId: string, documentIds: string[], files: File[]) {
   try {
-    console.log(`[Job ${jobId}] Starting OpenAI Vision processing for ${files.length} handwritten invoices`);
-
+    const supabase = await createClient();
+    
     await supabase
       .from('jobs')
       .update({ 
         progress: 5, 
         message: 'Initializing OpenAI Vision model for handwritten text recognition...' 
       })
-      .eq('id', jobId);
+      .eq('id', jobId)
+      .eq('user_id', userId);
 
     const { data: synonyms } = await supabase
       .from('synonyms')
-      .select('*');
+      .select('*')
+      .eq('user_id', userId);
 
     const synonymMap = new Map(synonyms?.map(s => [s.term.toLowerCase(), s.canonical]) || []);
-    console.log(`[Job ${jobId}] Loaded ${synonyms?.length || 0} synonym mappings`);
-    if (synonyms && synonyms.length > 0) {
-      console.log(`[Job ${jobId}] Synonym mappings:`, synonyms.map(s => `${s.term} -> ${s.canonical}`).join(', '));
-    }
 
     let currentProgress = 10;
     const allResults: any[] = [];
@@ -116,12 +128,9 @@ async function processDocuments(jobId: string, documentIds: string[], files: Fil
           progress: currentProgress,
           message: `Extracting data from handwritten invoice: ${filename} (${current}/${total})...`
         })
-        .eq('id', jobId);
-      
-      console.log(`[Job ${jobId}] Processing ${filename}: ${current}/${total}`);
+        .eq('id', jobId)
+        .eq('user_id', userId);
     });
-
-    console.log(`[Job ${jobId}] OpenAI Vision extraction complete. Processing results...`);
 
     await supabase
       .from('jobs')
@@ -129,7 +138,8 @@ async function processDocuments(jobId: string, documentIds: string[], files: Fil
         progress: 75,
         message: 'Mapping extracted terms to canonical fields...'
       })
-      .eq('id', jobId);
+      .eq('id', jobId)
+      .eq('user_id', userId);
 
     for (let i = 0; i < extractionResults.length; i++) {
       const extraction = extractionResults[i];
@@ -139,23 +149,16 @@ async function processDocuments(jobId: string, documentIds: string[], files: Fil
         .from('documents')
         .select('*')
         .eq('id', docId)
+        .eq('user_id', userId)
         .single();
 
       if (!doc) {
-        console.log(`[Job ${jobId}] Document not found for ${extraction.filename}`);
         continue;
       }
 
       if (extraction.results.length === 0) {
-        console.log(`[Job ${jobId}] No extraction results for ${extraction.filename}`);
-        console.log(`[Job ${jobId}] This might indicate Gemini didn't extract any data. Check Gemini response.`);
         continue;
       }
-
-      console.log(`[Job ${jobId}] Processing ${extraction.results.length} extracted terms from ${extraction.filename}:`);
-      extraction.results.forEach((r, idx) => {
-        console.log(`[Job ${jobId}]   [${idx + 1}] Term: "${r.term}", Value: "${r.value}", Confidence: ${r.confidence}`);
-      });
 
       for (const extracted of extraction.results) {
         const normalizedTerm = extracted.term.toLowerCase().trim();
@@ -171,10 +174,9 @@ async function processDocuments(jobId: string, documentIds: string[], files: Fil
           }
         }
 
-        console.log(`[Job ${jobId}] Mapping: "${extracted.term}" (normalized: "${normalizedTerm}") -> canonical: "${canonical}"`);
-
         allResults.push({
           job_id: jobId,
+          user_id: userId,
           doc_id: docId,
           doc_name: doc.name,
           page: extracted.page,
@@ -187,24 +189,16 @@ async function processDocuments(jobId: string, documentIds: string[], files: Fil
       }
     }
 
-    console.log(`[Job ${jobId}] Mapped ${allResults.length} financial terms`);
-
     await supabase
       .from('jobs')
       .update({ 
         progress: 85,
         message: 'Saving extracted data...'
       })
-      .eq('id', jobId);
+      .eq('id', jobId)
+      .eq('user_id', userId);
 
     if (allResults.length > 0) {
-      console.log(`[Job ${jobId}] Inserting ${allResults.length} results into database...`);
-      console.log(`[Job ${jobId}] Sample results being inserted:`, allResults.slice(0, 3).map(r => ({
-        term: r.original_term,
-        canonical: r.canonical,
-        value: r.value
-      })));
-      
       const { error: resultsError, data: insertedData } = await supabase
         .from('results')
         .insert(allResults)
@@ -214,33 +208,8 @@ async function processDocuments(jobId: string, documentIds: string[], files: Fil
         console.error(`[Job ${jobId}] Error inserting results:`, resultsError);
         throw resultsError;
       }
-
-      console.log(`[Job ${jobId}] Successfully inserted ${insertedData?.length || allResults.length} results`);
-      
-      const subtotalResults = allResults.filter(r => 
-        r.original_term.toLowerCase().includes('subtotal') || 
-        r.canonical.toLowerCase().includes('subtotal')
-      );
-      const discountResults = allResults.filter(r => 
-        r.original_term.toLowerCase().includes('discount') || 
-        r.canonical.toLowerCase().includes('discount')
-      );
-      
-      console.log(`[Job ${jobId}] Subtotal-related results: ${subtotalResults.length}`);
-      console.log(`[Job ${jobId}] Discount-related results: ${discountResults.length}`);
-      
-      if (subtotalResults.length > 0) {
-        subtotalResults.forEach(r => {
-          console.log(`[Job ${jobId}]   Subtotal: "${r.original_term}" -> "${r.canonical}" = "${r.value}"`);
-        });
-      }
-      if (discountResults.length > 0) {
-        discountResults.forEach(r => {
-          console.log(`[Job ${jobId}]   Discount: "${r.original_term}" -> "${r.canonical}" = "${r.value}"`);
-        });
-      }
     } else {
-      console.warn(`[Job ${jobId}] ⚠️ WARNING: No results to insert! This means no data was extracted.`);
+      console.warn(`[Job ${jobId}] WARNING: No results to insert! This means no data was extracted.`);
     }
 
     await supabase
@@ -249,7 +218,8 @@ async function processDocuments(jobId: string, documentIds: string[], files: Fil
         progress: 95,
         message: 'Finalizing...'
       })
-      .eq('id', jobId);
+      .eq('id', jobId)
+      .eq('user_id', userId);
 
     await new Promise(resolve => setTimeout(resolve, 500));
 
@@ -262,12 +232,12 @@ async function processDocuments(jobId: string, documentIds: string[], files: Fil
         total_records: allResults.length,
         message: `Successfully extracted ${allResults.length} financial terms from ${files.length} handwritten invoices`,
       })
-      .eq('id', jobId);
-
-    console.log(`[Job ${jobId}] Processing complete! Total records: ${allResults.length}`);
+      .eq('id', jobId)
+      .eq('user_id', userId);
 
   } catch (error) {
     console.error(`[Job ${jobId}] Processing error:`, error);
+    const supabase = await createClient();
     
     await supabase
       .from('jobs')
@@ -278,4 +248,3 @@ async function processDocuments(jobId: string, documentIds: string[], files: Fil
       .eq('id', jobId);
   }
 }
-

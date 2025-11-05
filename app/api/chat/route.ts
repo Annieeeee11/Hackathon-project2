@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/server';
 import OpenAI from 'openai';
 
 const openai = new OpenAI({
@@ -8,9 +8,18 @@ const openai = new OpenAI({
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('[Chat API] Received request');
+    const supabase = await createClient();
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const { jobId, question, conversationHistory } = await request.json();
-    console.log('[Chat API] jobId:', jobId, 'question:', question);
 
     if (!jobId || !question) {
       console.error('[Chat API] Missing required fields');
@@ -20,11 +29,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('[Chat API] Fetching results for jobId:', jobId);
+    const { data: job, error: jobError } = await supabase
+      .from('jobs')
+      .select('id')
+      .eq('id', jobId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (jobError || !job) {
+      return NextResponse.json(
+        { error: 'Job not found or access denied' },
+        { status: 403 }
+      );
+    }
+
     const { data: results, error: resultsError } = await supabase
       .from('results')
       .select('*')
       .eq('job_id', jobId)
+      .eq('user_id', user.id)
       .order('created_at', { ascending: true });
 
     if (resultsError) {
@@ -34,8 +57,6 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-
-    console.log('[Chat API] Found', results?.length || 0, 'results');
 
     if (!results || results.length === 0) {
       return NextResponse.json({
@@ -77,7 +98,6 @@ Instructions:
 
 Answer:`;
 
-    console.log('[Chat API] Calling OpenAI...');
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
@@ -95,19 +115,18 @@ Answer:`;
     });
 
     const answer = completion.choices[0].message.content || 'I could not generate an answer.';
-    console.log('[Chat API] Got answer:', answer.substring(0, 100));
 
     try {
       await supabase.from('chat_history').insert({
         job_id: jobId,
+        user_id: user.id,
         question,
         answer,
       });
     } catch (err) {
-      console.log('[Chat API] Note: chat_history table may not exist yet:', err);
+      // Chat history table may not exist yet
     }
 
-    console.log('[Chat API] Returning success response');
     return NextResponse.json({ answer });
 
   } catch (error) {
