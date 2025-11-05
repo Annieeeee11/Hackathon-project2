@@ -1,21 +1,28 @@
 'use client';
 
 import { X, FileText, MapPin } from 'lucide-react';
-
-interface Evidence {
-  id: string;
-  docName: string;
-  page: number;
-  originalTerm: string;
-  canonical: string;
-  value: string;
-  confidence: number;
-  evidence?: string;
-}
+import { Evidence } from '@/lib/types';
+import { ConfidenceBadge } from '@/components/common';
 
 interface EvidenceDrawerProps {
   evidence: Evidence;
   onClose: () => void;
+}
+
+interface InfoCardProps {
+  label: string;
+  children: React.ReactNode;
+}
+
+function InfoCard({ label, children }: InfoCardProps) {
+  return (
+    <div>
+      <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">
+        {label}
+      </p>
+      {children}
+    </div>
+  );
 }
 
 export default function EvidenceDrawer({ evidence, onClose }: EvidenceDrawerProps) {
@@ -62,42 +69,20 @@ Payment due within 30 days of invoice date.`;
           {/* Document Info */}
           <div className="bg-zinc-50 rounded-lg p-5 border border-zinc-200 mb-6">
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">
-                  Document
-                </p>
+              <InfoCard label="Document">
                 <p className="text-sm font-medium text-zinc-900">{evidence.docName}</p>
-              </div>
-              <div>
-                <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">
-                  Page Number
-                </p>
+              </InfoCard>
+              <InfoCard label="Page Number">
                 <p className="text-sm font-medium text-zinc-900">Page {evidence.page}</p>
-              </div>
-              <div>
-                <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">
-                  Original Term
-                </p>
+              </InfoCard>
+              <InfoCard label="Original Term">
                 <span className="inline-flex items-center px-3 py-1 rounded-md bg-zinc-200 text-sm font-medium text-zinc-800">
                   {evidence.originalTerm}
                 </span>
-              </div>
-              <div>
-                <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">
-                  Confidence Score
-                </p>
-                <span
-                  className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${
-                    evidence.confidence >= 95
-                      ? 'bg-green-100 text-green-700'
-                      : evidence.confidence >= 90
-                      ? 'bg-yellow-100 text-yellow-700'
-                      : 'bg-red-100 text-red-700'
-                  }`}
-                >
-                  {evidence.confidence}%
-                </span>
-              </div>
+              </InfoCard>
+              <InfoCard label="Confidence Score">
+                <ConfidenceBadge confidence={evidence.confidence} />
+              </InfoCard>
             </div>
           </div>
 
@@ -171,4 +156,3 @@ Payment due within 30 days of invoice date.`;
     </>
   );
 }
-

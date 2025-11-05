@@ -2,18 +2,40 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { MessageSquare, Send, Loader2, X } from 'lucide-react';
-
-interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-}
+import { Message } from '@/lib/types';
+import { formatTime } from '@/lib/utils';
+import { MAX_CONVERSATION_HISTORY, WELCOME_MESSAGE } from '@/lib/constants';
+import { EmptyState } from '@/components/common';
 
 interface ChatInterfaceProps {
   jobId: string | null;
   isOpen: boolean;
   onClose: () => void;
+}
+
+interface ChatMessageProps {
+  message: Message;
+}
+
+function ChatMessage({ message }: ChatMessageProps) {
+  const isUser = message.role === 'user';
+  
+  return (
+    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+      <div
+        className={`max-w-[80%] rounded-lg px-4 py-2 ${
+          isUser
+            ? 'bg-zinc-900 text-white'
+            : 'bg-zinc-100 text-zinc-900'
+        }`}
+      >
+        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+        <p className="text-xs opacity-60 mt-1">
+          {formatTime(message.timestamp)}
+        </p>
+      </div>
+    </div>
+  );
 }
 
 export default function ChatInterface({ jobId, isOpen, onClose }: ChatInterfaceProps) {
@@ -34,9 +56,7 @@ export default function ChatInterface({ jobId, isOpen, onClose }: ChatInterfaceP
   useEffect(() => {
     if (isOpen && messages.length === 0 && jobId) {
       setMessages([{
-        id: 'welcome',
-        role: 'assistant',
-        content: "Hi! I can help you query the financial data from your uploaded documents. Try asking:\n\n• What's the total GST amount?\n• Show me all tax terms\n• What's the invoice total?",
+        ...WELCOME_MESSAGE,
         timestamp: new Date(),
       }]);
     }
@@ -46,7 +66,6 @@ export default function ChatInterface({ jobId, isOpen, onClose }: ChatInterfaceP
     e.preventDefault();
     
     if (!input.trim() || !jobId || isLoading) {
-      console.log('Submit blocked:', { input: input.trim(), jobId, isLoading });
       return;
     }
 
@@ -62,27 +81,22 @@ export default function ChatInterface({ jobId, isOpen, onClose }: ChatInterfaceP
     setIsLoading(true);
 
     try {
-      console.log('Sending chat request for jobId:', jobId);
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           jobId,
           question: userMessage.content,
-          conversationHistory: messages.slice(-4), // Last 4 messages for context
+          conversationHistory: messages.slice(-MAX_CONVERSATION_HISTORY),
         }),
       });
 
-      console.log('Chat response status:', response.status);
-
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error('Chat API error:', errorData);
         throw new Error(errorData.error || 'Failed to get response');
       }
 
       const data = await response.json();
-      console.log('Chat response:', data);
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -130,32 +144,16 @@ export default function ChatInterface({ jobId, isOpen, onClose }: ChatInterfaceP
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {!jobId ? (
-          <div className="flex items-center justify-center h-full text-center">
-            <div className="text-zinc-500">
-              <MessageSquare className="w-12 h-12 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">Upload a document first to start asking questions</p>
-            </div>
-          </div>
+          <EmptyState
+            icon={MessageSquare}
+            title="Upload a document first"
+            description="Upload a document to start asking questions"
+            className="h-full"
+          />
         ) : (
           <>
             {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                <div
-                  className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                    message.role === 'user'
-                      ? 'bg-zinc-900 text-white'
-                      : 'bg-zinc-100 text-zinc-900'
-                  }`}
-                >
-                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                  <p className="text-xs opacity-60 mt-1">
-                    {message.timestamp.toLocaleTimeString()}
-                  </p>
-                </div>
-              </div>
+              <ChatMessage key={message.id} message={message} />
             ))}
             {isLoading && (
               <div className="flex justify-start">
@@ -192,4 +190,3 @@ export default function ChatInterface({ jobId, isOpen, onClose }: ChatInterfaceP
     </div>
   );
 }
-

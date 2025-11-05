@@ -4,12 +4,70 @@ import React, { useState, useCallback, useRef } from 'react';
 import { Upload, File, X, Loader2, PenTool } from 'lucide-react';
 import { toast } from 'sonner';
 import { uploadFiles, uploadHandwrittenFiles } from '@/lib/api';
+import { InvoiceType } from '@/lib/types';
+import { validateFileType, formatFileSize, pluralize } from '@/lib/utils';
+import { FILE_TYPES } from '@/lib/constants';
+import { FileIcon } from '@/components/common';
 
 interface UploadZoneProps {
   onJobCreated: (jobId: string) => void;
 }
 
-type InvoiceType = 'regular' | 'handwritten';
+interface InvoiceTypeTabProps {
+  type: InvoiceType;
+  label: string;
+  icon?: React.ReactNode;
+  active: boolean;
+  onClick: () => void;
+}
+
+function InvoiceTypeTab({ type, label, icon, active, onClick }: InvoiceTypeTabProps) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-4 py-2 text-xs font-medium rounded-lg transition-colors flex items-center gap-2 ${
+        active
+          ? 'bg-zinc-900 text-white'
+          : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+      }`}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
+
+interface FileListItemProps {
+  file: File;
+  index: number;
+  onRemove: (index: number) => void;
+}
+
+function FileListItem({ file, index, onRemove }: FileListItemProps) {
+  return (
+    <div className="flex items-center justify-between p-3 bg-zinc-50 rounded-lg border border-zinc-200">
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        <div className="w-8 h-8 bg-zinc-200 rounded flex items-center justify-center shrink-0">
+          <File className="w-4 h-4 text-zinc-600" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-zinc-900 truncate">
+            {file.name}
+          </p>
+          <p className="text-xs text-zinc-500">
+            {formatFileSize(file.size)}
+          </p>
+        </div>
+      </div>
+      <button
+        onClick={() => onRemove(index)}
+        className="p-1 hover:bg-zinc-200 rounded transition-colors shrink-0"
+      >
+        <X className="w-4 h-4 text-zinc-600" />
+      </button>
+    </div>
+  );
+}
 
 export default function UploadZone({ onJobCreated }: UploadZoneProps) {
   const [invoiceType, setInvoiceType] = useState<InvoiceType>('regular');
@@ -40,6 +98,34 @@ export default function UploadZone({ onJobCreated }: UploadZoneProps) {
     }
   }, []);
 
+  const processFiles = useCallback((files: File[]) => {
+    const validFiles: File[] = [];
+    const invalidFiles: string[] = [];
+
+    files.forEach(file => {
+      if (validateFileType(file, invoiceType)) {
+        validFiles.push(file);
+      } else {
+        invalidFiles.push(file.name);
+      }
+    });
+
+    if (validFiles.length > 0) {
+      setUploadedFiles(prev => [...prev, ...validFiles]);
+      toast.success(`Added ${validFiles.length} ${pluralize(validFiles.length, 'file')}`);
+    }
+
+    if (invalidFiles.length > 0) {
+      const expectedTypes = invoiceType === 'regular' 
+        ? FILE_TYPES.REGULAR.description
+        : FILE_TYPES.HANDWRITTEN.description;
+      toast.error(
+        `${invalidFiles.length} ${pluralize(invalidFiles.length, 'file')} rejected. Only ${expectedTypes} are allowed.`,
+        { duration: 4000 }
+      );
+    }
+  }, [invoiceType]);
+
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -47,81 +133,13 @@ export default function UploadZone({ onJobCreated }: UploadZoneProps) {
     dragCounter.current = 0;
 
     const droppedFiles = Array.from(e.dataTransfer.files);
-    const validFiles: File[] = [];
-    const invalidFiles: string[] = [];
-
-    droppedFiles.forEach(file => {
-      if (invoiceType === 'regular') {
-        if (file.type === 'application/pdf') {
-          validFiles.push(file);
-        } else {
-          invalidFiles.push(file.name);
-        }
-      } else {
-        // For handwritten, accept PDF, images
-        if (file.type === 'application/pdf' || file.type.startsWith('image/')) {
-          validFiles.push(file);
-        } else {
-          invalidFiles.push(file.name);
-        }
-      }
-    });
-
-    if (validFiles.length > 0) {
-      setUploadedFiles(prev => [...prev, ...validFiles]);
-      toast.success(`Added ${validFiles.length} file${validFiles.length > 1 ? 's' : ''}`);
-    }
-
-    if (invalidFiles.length > 0) {
-      const expectedTypes = invoiceType === 'regular' 
-        ? 'PDF files'
-        : 'PDF or image files (PNG, JPG, etc.)';
-      toast.error(
-        `${invalidFiles.length} file${invalidFiles.length > 1 ? 's' : ''} rejected. Only ${expectedTypes} are allowed.`,
-        { duration: 4000 }
-      );
-    }
-  }, [invoiceType]);
+    processFiles(droppedFiles);
+  }, [processFiles]);
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const selectedFiles = Array.from(e.target.files);
-      const validFiles: File[] = [];
-      const invalidFiles: string[] = [];
-
-      selectedFiles.forEach(file => {
-        if (invoiceType === 'regular') {
-          if (file.type === 'application/pdf') {
-            validFiles.push(file);
-          } else {
-            invalidFiles.push(file.name);
-          }
-        } else {
-          // For handwritten, accept PDF, images
-          if (file.type === 'application/pdf' || file.type.startsWith('image/')) {
-            validFiles.push(file);
-          } else {
-            invalidFiles.push(file.name);
-          }
-        }
-      });
-
-      if (validFiles.length > 0) {
-        setUploadedFiles(prev => [...prev, ...validFiles]);
-        toast.success(`Added ${validFiles.length} file${validFiles.length > 1 ? 's' : ''}`);
-      }
-
-      if (invalidFiles.length > 0) {
-        const expectedTypes = invoiceType === 'regular' 
-          ? 'PDF files'
-          : 'PDF or image files (PNG, JPG, etc.)';
-        toast.error(
-          `${invalidFiles.length} file${invalidFiles.length > 1 ? 's' : ''} rejected. Only ${expectedTypes} are allowed.`,
-          { duration: 4000 }
-        );
-      }
-
-      // Reset input value to allow re-selecting the same file
+      processFiles(selectedFiles);
       e.target.value = '';
     }
   };
@@ -140,7 +158,7 @@ export default function UploadZone({ onJobCreated }: UploadZoneProps) {
       
       onJobCreated(response.jobId);
       toast.success(`Processing started! Job ID: ${response.jobId}`);
-      setUploadedFiles([]); // Clear uploaded files
+      setUploadedFiles([]);
     } catch (error) {
       toast.error('Failed to upload files. Please try again.');
       console.error('Upload error:', error);
@@ -153,45 +171,40 @@ export default function UploadZone({ onJobCreated }: UploadZoneProps) {
     setUploadedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
+  const handleInvoiceTypeChange = (type: InvoiceType) => {
+    setInvoiceType(type);
+    setUploadedFiles([]);
+  };
+
+  const fileConfig = invoiceType === 'regular' ? FILE_TYPES.REGULAR : FILE_TYPES.HANDWRITTEN;
+
   return (
     <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden">
+      {/* Header */}
       <div className="px-6 py-4 border-b border-zinc-200">
         <h2 className="text-sm font-semibold text-zinc-900">Upload Documents</h2>
         <p className="text-xs text-zinc-500 mt-1">Upload invoices to extract and normalize financial data</p>
         
         {/* Invoice Type Tabs */}
         <div className="flex gap-2 mt-4">
-          <button
-            onClick={() => {
-              setInvoiceType('regular');
-              setUploadedFiles([]);
-            }}
-            className={`px-4 py-2 text-xs font-medium rounded-lg transition-colors ${
-              invoiceType === 'regular'
-                ? 'bg-zinc-900 text-white'
-                : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
-            }`}
-          >
-            Regular Invoices
-          </button>
-          <button
-            onClick={() => {
-              setInvoiceType('handwritten');
-              setUploadedFiles([]);
-            }}
-            className={`px-4 py-2 text-xs font-medium rounded-lg transition-colors flex items-center gap-2 ${
-              invoiceType === 'handwritten'
-                ? 'bg-zinc-900 text-white'
-                : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
-            }`}
-          >
-            <PenTool className="w-3 h-3" />
-            Handwritten Invoices
-          </button>
+          <InvoiceTypeTab
+            type="regular"
+            label="Regular Invoices"
+            active={invoiceType === 'regular'}
+            onClick={() => handleInvoiceTypeChange('regular')}
+          />
+          <InvoiceTypeTab
+            type="handwritten"
+            label="Handwritten Invoices"
+            icon={<PenTool className="w-3 h-3" />}
+            active={invoiceType === 'handwritten'}
+            onClick={() => handleInvoiceTypeChange('handwritten')}
+          />
         </div>
       </div>
 
       <div className="p-6">
+        {/* Drop Zone */}
         <div
           className={`relative border-2 border-dashed rounded-lg transition-all duration-200 ${
             dragActive
@@ -206,7 +219,7 @@ export default function UploadZone({ onJobCreated }: UploadZoneProps) {
           <input
             type="file"
             multiple
-            accept={invoiceType === 'regular' ? '.pdf' : '.pdf,image/*'}
+            accept={fileConfig.accept}
             onChange={handleFileInput}
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
           />
@@ -242,34 +255,17 @@ export default function UploadZone({ onJobCreated }: UploadZoneProps) {
         {uploadedFiles.length > 0 && (
           <div className="mt-4 space-y-2">
             {uploadedFiles.map((file, index) => (
-              <div
-                key={index}
-                className="flex items-center justify-between p-3 bg-zinc-50 rounded-lg border border-zinc-200"
-              >
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="w-8 h-8 bg-zinc-200 rounded flex items-center justify-center shrink-0">
-                    <File className="w-4 h-4 text-zinc-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-zinc-900 truncate">
-                      {file.name}
-                    </p>
-                    <p className="text-xs text-zinc-500">
-                      {(file.size / 1024 / 1024).toFixed(2)} MB
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => removeFile(index)}
-                  className="p-1 hover:bg-zinc-200 rounded transition-colors shrink-0"
-                >
-                  <X className="w-4 h-4 text-zinc-600" />
-                </button>
-              </div>
+              <FileListItem
+                key={`${file.name}-${index}`}
+                file={file}
+                index={index}
+                onRemove={removeFile}
+              />
             ))}
           </div>
         )}
 
+        {/* Process Button */}
         {uploadedFiles.length > 0 && (
           <button 
             onClick={handleProcess}
@@ -282,7 +278,7 @@ export default function UploadZone({ onJobCreated }: UploadZoneProps) {
                 Processing...
               </>
             ) : (
-              <>Process {uploadedFiles.length} {uploadedFiles.length === 1 ? 'Document' : 'Documents'}</>
+              <>Process {uploadedFiles.length} {pluralize(uploadedFiles.length, 'Document')}</>
             )}
           </button>
         )}
@@ -290,4 +286,3 @@ export default function UploadZone({ onJobCreated }: UploadZoneProps) {
     </div>
   );
 }
-

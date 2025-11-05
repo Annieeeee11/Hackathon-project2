@@ -2,6 +2,7 @@
 
 import { Clock, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import React from 'react';
+import { getStatusConfig } from '@/lib/utils';
 
 interface JobStatusProps {
   status: 'idle' | 'processing' | 'completed' | 'error';
@@ -11,14 +12,37 @@ interface JobStatusProps {
   recordsCount?: number;
 }
 
-type StatusConfig = {
-  icon: React.ComponentType<{ className?: string }>;
-  text: string;
-  color: string;
-  bg: string;
-  description: string;
-  animate: boolean;
-};
+interface StatusIconProps {
+  status: 'idle' | 'processing' | 'completed' | 'error';
+}
+
+function StatusIcon({ status }: StatusIconProps) {
+  const icons = {
+    idle: Clock,
+    processing: Loader2,
+    completed: CheckCircle,
+    error: XCircle,
+  };
+
+  const Icon = icons[status];
+  return (
+    <Icon className={`w-6 h-6 ${status === 'processing' ? 'animate-spin' : ''}`} />
+  );
+}
+
+interface StatsCardProps {
+  label: string;
+  value: number;
+}
+
+function StatsCard({ label, value }: StatsCardProps) {
+  return (
+    <div className="bg-zinc-50 rounded-lg p-4">
+      <p className="text-xs text-zinc-500 mb-1">{label}</p>
+      <p className="text-2xl font-semibold text-zinc-900">{value}</p>
+    </div>
+  );
+}
 
 export default function JobStatus({ 
   status, 
@@ -27,43 +51,7 @@ export default function JobStatus({
   documentsCount = 0,
   recordsCount = 0 
 }: JobStatusProps) {
-  const statusConfig: Record<'idle' | 'processing' | 'completed' | 'error', StatusConfig> = {
-    idle: {
-      icon: Clock,
-      text: 'Ready',
-      color: 'text-zinc-500',
-      bg: 'bg-zinc-100',
-      description: 'Upload documents to begin processing',
-      animate: false,
-    },
-    processing: {
-      icon: Loader2,
-      text: 'Processing',
-      color: 'text-blue-600',
-      bg: 'bg-blue-50',
-      description: message || 'Extracting and normalizing data...',
-      animate: true,
-    },
-    completed: {
-      icon: CheckCircle,
-      text: 'Completed',
-      color: 'text-green-600',
-      bg: 'bg-green-50',
-      description: 'Documents processed successfully',
-      animate: false,
-    },
-    error: {
-      icon: XCircle,
-      text: 'Error',
-      color: 'text-red-600',
-      bg: 'bg-red-50',
-      description: message || 'An error occurred during processing',
-      animate: false,
-    },
-  };
-
-  const config = statusConfig[status];
-  const Icon = config.icon;
+  const config = getStatusConfig(status);
 
   return (
     <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden h-93">
@@ -72,21 +60,23 @@ export default function JobStatus({
       </div>
 
       <div className="p-6">
+        {/* Status Display */}
         <div className={`${config.bg} rounded-lg p-6`}>
           <div className="flex items-start gap-4">
-            <div className={`${config.color} shrink-0`}>
-              <Icon className={`w-6 h-6 ${config.animate ? 'animate-spin' : ''}`} />
+            <div className={config.color}>
+              <StatusIcon status={status} />
             </div>
             <div className="flex-1 min-w-0">
               <h3 className={`text-base font-semibold ${config.color} mb-6`}>
-                {config.text}
+                {config.label}
               </h3>
               <p className="text-sm text-zinc-600 mb-6">
-                {config.description}
+                {message || config.description}
               </p>
             </div>
           </div>
 
+          {/* Progress Bar */}
           {status === 'processing' && (
             <div className="mt-4">
               <div className="flex items-center justify-between text-xs text-zinc-600 mb-2">
@@ -105,17 +95,10 @@ export default function JobStatus({
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-4 mt-6">
-          <div className="bg-zinc-50 rounded-lg p-4">
-            <p className="text-xs text-zinc-500 mb-1">Documents</p>
-            <p className="text-2xl font-semibold text-zinc-900">{documentsCount}</p>
-          </div>
-          <div className="bg-zinc-50 rounded-lg p-4">
-            <p className="text-xs text-zinc-500 mb-1">Records</p>
-            <p className="text-2xl font-semibold text-zinc-900">{recordsCount}</p>
-          </div>
+          <StatsCard label="Documents" value={documentsCount} />
+          <StatsCard label="Records" value={recordsCount} />
         </div>
       </div>
     </div>
   );
 }
-

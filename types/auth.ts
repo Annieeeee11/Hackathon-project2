@@ -1,8 +1,2 @@
-export interface AuthFormData {
-  email: string;
-  password: string;
-}
-
-export interface SignUpFormData extends AuthFormData {
-  confirmPassword: string;
-}
+// Re-export auth types from centralized types file
+export type { AuthFormData, SignUpFormData, User } from '@/lib/types';
