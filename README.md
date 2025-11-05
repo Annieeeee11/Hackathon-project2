@@ -1,7 +1,7 @@
 # Finance Concept Translator- FinTech
 
 
-PROJECT DEVS => KHUSHI DIWAN & VAANYA GOEL
+PROJECT DEVS => KHUSHI DIWAN & Anaya
 
 
 An AI-powered financial document processor that extracts, normalizes, and analyzes financial data from PDF invoices and receipts. Transform complex financial documents into clean, consistent data with intelligent concept mapping and real-time processing.
