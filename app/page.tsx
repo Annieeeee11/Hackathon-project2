@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { LandingNavbar } from '@/components/Navbar';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
